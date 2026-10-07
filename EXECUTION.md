@@ -1,10 +1,10 @@
 # Ring execution
 
-The execution worker reads verified wins directly from the shared SQLite database. It accepts no external execution payload and exposes no signing endpoint. It processes wins in order and never accepts caller-provided instructions, program IDs, RPC endpoints or metadata destination URLs.
+The execution worker reads verified wins directly from the shared database (Supabase Postgres or local SQLite). It accepts no external execution payload and exposes no signing endpoint. It processes wins in order and never accepts caller-provided instructions, program IDs, RPC endpoints or metadata destination URLs.
 
 ## Metadata
 
-`src/lib/token-metadata.ts` reads the exact configured mint, checks its token program and update authority, loads its current JSON, preserves unrelated fields and changes only the submitted description or image. Image changes replace the prior image attachment while retaining other media and properties. Images and resulting JSON live at content-addressed `/api/assets/<sha256>` URLs, stored in SQLite and served with immutable caching. Keep this origin and database available permanently.
+`src/lib/token-metadata.ts` reads the exact configured mint, checks its token program and update authority, loads its current JSON, preserves unrelated fields and changes only the submitted description or image. Image changes replace the prior image attachment while retaining other media and properties. Images and resulting JSON live at content-addressed `/api/assets/<sha256>` URLs, stored in the shared database and served with immutable caching. Keep this origin and database available permanently.
 
 For SPL tokens, Metaplex `updateV1` preserves name, symbol, creators and royalty settings. Metadata must remain mutable. For Token-2022, Ring supports metadata stored on the mint, updates its URI through the metadata interface, and tops up rent if the URI grows. External metadata-pointer programs and transfer-hook fee claims are not supported. The existing JSON's host must be in the configured allowlist; redirects are rejected and JSON size is bounded.
 

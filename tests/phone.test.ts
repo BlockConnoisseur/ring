@@ -1,3 +1,4 @@
+process.env.RING_STORAGE = "sqlite";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { mkdtempSync } from "node:fs";
@@ -30,7 +31,7 @@ test(
     await new Promise<void>((resolve) => reservation.close(() => resolve()));
     const wallet = Keypair.generate().publicKey.toBase58(),
       mint = Keypair.generate().publicKey.toBase58();
-    const code = transact((s) => {
+    const code = await transact((s) => {
       s.wallets[wallet] = { username: "caller", cooldownUntil: 0 };
       s.proposals.push({
         id: "proposal",
@@ -134,7 +135,7 @@ test(
       );
       const xml = await (await post("/code", { Digits: code })).text();
       assert.match(xml, /<Stream/);
-      const game = readStore().games[0];
+      const game = (await readStore()).games[0];
       assert.equal(game.target, 3);
       ws = new WebSocket(`ws://127.0.0.1:${port}/stream`, {
         headers: {
@@ -211,7 +212,7 @@ test(
       );
       await finished;
       assert.equal(questions, 3);
-      const result = readStore();
+      const result = await readStore();
       assert.equal(result.games[0].status, "won");
       assert.equal(result.wins, 1);
       assert.equal(result.executions.length, 1);
@@ -226,7 +227,7 @@ test(
       assert.ok(result.wallets[wallet].cooldownUntil > Date.now());
       await post("/status", { CallStatus: "completed" });
       await post("/status", { CallStatus: "completed" });
-      assert.equal(readStore().executions.length, 1);
+      assert.equal((await readStore()).executions.length, 1);
     } finally {
       ws?.terminate();
       child.kill();

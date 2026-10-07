@@ -71,19 +71,19 @@ export function applyExecution(
 
 export async function executorTick() {
   if (process.env.RING_LIVE !== "true") return;
-  const lease = acquireLease("executor");
+  const lease = await acquireLease("executor");
   if (!lease) return;
   let leaseLost = false;
-  const renew = setInterval(() => {
+  const renew = setInterval(async () => {
     try {
-      lease.renew();
+      await lease.renew();
     } catch {
       leaseLost = true;
     }
   }, 30_000);
-  const guard = () => {
+  const guard = async () => {
     if (leaseLost) throw new Error("Worker lease lost.");
-    lease.renew();
+    await lease.renew();
   };
   try {
     const connection = chain(),
@@ -93,7 +93,7 @@ export async function executorTick() {
     const initial = new PublicKey(
       process.env.RING_INITIAL_FEE_RECIPIENT || "",
     ).toBase58();
-    transact((s) => {
+    await transact((s) => {
       bindMint(s, mint);
       s.fees ??= {
         recipient: initial,
@@ -108,11 +108,11 @@ export async function executorTick() {
       save: (s: Store, c: FeeCycle) => void,
     ) {
       for (let index = 0; index < cycle.sources.length; index++) {
-        guard();
+        await guard();
         const source = cycle.sources[index],
           id = `${cycle.id}:${index}`;
         if (cycle.completed[id]) continue;
-        const tx = operation(id)
+        const tx = (await operation(id))
           ? undefined
           : await claimTransaction(
               connection,
@@ -122,8 +122,8 @@ export async function executorTick() {
             );
         if (tx === null) {
           cycle.completed[id] = "empty";
-          guard();
-          transact((s) => save(s, cycle));
+          await guard();
+          await transact((s) => save(s, cycle));
           continue;
         }
         const signature = await runOperation(
@@ -139,7 +139,7 @@ export async function executorTick() {
                 new PublicKey(cycle.recipient),
                 source,
               ));
-            guard();
+            await guard();
             return signTransaction(
               connection,
               signer,
@@ -150,8 +150,8 @@ export async function executorTick() {
         );
         if (!signature) return false;
         cycle.completed[id] = signature;
-        guard();
-        transact((s) => {
+        await guard();
+        await transact((s) => {
           save(s, cycle);
           if (!s.fees!.receipts.some((r) => r.transaction === signature))
             s.fees!.receipts.push({
@@ -164,7 +164,7 @@ export async function executorTick() {
       return true;
     }
     // Finish an already-signed payout before considering a recipient change.
-    let state = readStore();
+    let state = await readStore();
     if (state.fees!.cycle) {
       if (
         !(await settle(state.fees!.cycle, (s, c) => {
@@ -172,13 +172,13 @@ export async function executorTick() {
         }))
       )
         return;
-      guard();
-      transact((s) => {
+      await guard();
+      await transact((s) => {
         delete s.fees!.cycle;
         s.fees!.lastClaimAt = Date.now();
       });
     }
-    state = readStore();
+    state = await readStore();
     const job = state.executions.find((e) => e.status !== "applied");
     if (job) {
       const game = state.games.find((g) => g.id === job.gameId),
@@ -191,15 +191,18 @@ export async function executorTick() {
       )
         throw new Error("No verified win.");
       // Recover signed operations even if holdings change after signing.
-      if (!operation(job.id) && (await holdsRing(game.wallet)) !== true) {
-        guard();
-        transact((s) => {
+      if (
+        !(await operation(job.id)) &&
+        (await holdsRing(game.wallet)) !== true
+      ) {
+        await guard();
+        await transact((s) => {
           s.executions.find((e) => e.id === job.id)!.status =
             "holding_required";
         });
         return;
       }
-      if (proposal.kind === "fees" && !operation(job.id)) {
+      if (proposal.kind === "fees" && !(await operation(job.id))) {
         if (!job.settlement) {
           job.settlement = {
             id: `settle:${job.id}`,
@@ -208,8 +211,8 @@ export async function executorTick() {
             completed: {},
             createdAt: Date.now(),
           };
-          guard();
-          transact((s) => {
+          await guard();
+          await transact((s) => {
             s.executions.find((e) => e.id === job.id)!.settlement =
               job.settlement;
           });
@@ -221,7 +224,7 @@ export async function executorTick() {
         )
           return;
       }
-      guard();
+      await guard();
       // Exclude mutable display fields (comment count/status) from the intent hash.
       const intent = {
         mint,
@@ -238,16 +241,16 @@ export async function executorTick() {
             : await metadataTransaction(connection, signer, proposal);
         if ((await holdsRing(game.wallet)) !== true)
           throw new Error("Winner must still hold Ring before signing.");
-        guard();
+        await guard();
         return signTransaction(connection, signer, tx);
       });
       if (signature) {
-        guard();
-        transact((s) => applyExecution(s, job.gameId, signature));
+        await guard();
+        await transact((s) => applyExecution(s, job.gameId, signature));
       }
       return;
     }
-    state = readStore();
+    state = await readStore();
     if (Date.now() - state.fees!.lastClaimAt >= 60_000) {
       const cycle: FeeCycle = {
         id: `payout:${randomUUID()}`,
@@ -256,8 +259,8 @@ export async function executorTick() {
         completed: {},
         createdAt: Date.now(),
       };
-      guard();
-      transact((s) => {
+      await guard();
+      await transact((s) => {
         s.fees!.cycle = cycle;
       });
       if (
@@ -265,8 +268,8 @@ export async function executorTick() {
           s.fees!.cycle = c;
         })
       ) {
-        guard();
-        transact((s) => {
+        await guard();
+        await transact((s) => {
           delete s.fees!.cycle;
           s.fees!.lastClaimAt = Date.now();
         });
@@ -276,7 +279,7 @@ export async function executorTick() {
     const message =
       error instanceof Error ? error.message : "Execution failed.";
     if (!leaseLost)
-      transact((s) => {
+      await transact((s) => {
         s.worker = { heartbeat: Date.now(), error: message };
         const job = s.executions.find((e) => e.status !== "applied");
         if (job) job.error = message;
@@ -284,6 +287,6 @@ export async function executorTick() {
     throw error;
   } finally {
     clearInterval(renew);
-    lease.release();
+    await lease.release();
   }
 }

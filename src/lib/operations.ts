@@ -1,5 +1,13 @@
 import { randomUUID } from "node:crypto";
-import { db } from "./store";
+import {
+  loadOperation,
+  insertOperation,
+  updateOperation,
+  deleteOperation,
+  claimLease,
+  renewLease,
+  releaseLease,
+} from "./database";
 import { hash } from "./game";
 
 export type SignedOperation = {
@@ -15,10 +23,8 @@ export interface TransactionTransport {
   finalizedHeight(): Promise<number>;
   send(raw: string): Promise<void>;
 }
-export function operation(id: string) {
-  const row = db()
-    .prepare("SELECT intent,body FROM operations WHERE id=?")
-    .get(id) as { intent: string; body: string } | undefined;
+export async function operation(id: string) {
+  const row = await loadOperation(id);
   return (
     row && { intent: row.intent, ...(JSON.parse(row.body) as SignedOperation) }
   );
@@ -32,7 +38,7 @@ export async function runOperation(
   build: () => Promise<Omit<SignedOperation, "status">>,
 ) {
   const digest = hash(JSON.stringify(intent));
-  let current = operation(id);
+  let current = await operation(id);
   if (current && current.intent !== digest)
     throw new Error("Operation intent changed.");
   if (current?.status === "finalized") return current.signature;
@@ -41,9 +47,11 @@ export async function runOperation(
     if (status === "failed")
       throw new Error(`Transaction failed: ${current.signature}`);
     if (status === "finalized") {
-      db()
-        .prepare("UPDATE operations SET body=? WHERE id=? AND intent=?")
-        .run(JSON.stringify({ ...current, status: "finalized" }), id, digest);
+      await updateOperation(
+        id,
+        digest,
+        JSON.stringify({ ...current, status: "finalized" }),
+      );
       return current.signature;
     }
     if (
@@ -53,59 +61,35 @@ export async function runOperation(
       // Check history again AFTER the finalized height proves expiry.
       status = await transport.status(current.signature);
       if (status === "missing") {
-        db()
-          .prepare("DELETE FROM operations WHERE id=? AND body=?")
-          .run(
-            id,
-            JSON.stringify({
-              raw: current.raw,
-              signature: current.signature,
-              lastValidBlockHeight: current.lastValidBlockHeight,
-              status: "signed",
-            }),
-          );
-        current = operation(id);
+        await deleteOperation(id, current.signature);
+        current = await operation(id);
       }
     }
   }
   if (!current) {
     const signed = await build();
-    db()
-      .prepare("INSERT OR IGNORE INTO operations(id,intent,body) VALUES(?,?,?)")
-      .run(id, digest, JSON.stringify({ ...signed, status: "signed" }));
-    current = operation(id)!;
+    await insertOperation(
+      id,
+      digest,
+      JSON.stringify({ ...signed, status: "signed" }),
+    );
+    current = (await operation(id))!;
     if (current.intent !== digest) throw new Error("Operation intent changed.");
   }
   await transport.send(current.raw);
   return null; // Only a later finalized receipt applies the proposal.
 }
 
-export function acquireLease(name: string, milliseconds = 120_000) {
+export async function acquireLease(name: string, milliseconds = 120_000) {
   const owner = randomUUID();
-  const now = Date.now();
-  const result = db()
-    .prepare(
-      `INSERT INTO worker_leases(name,owner,expires) VALUES(?,?,?)
-    ON CONFLICT(name) DO UPDATE SET owner=excluded.owner, expires=excluded.expires
-    WHERE worker_leases.expires < ?`,
-    )
-    .run(name, owner, now + milliseconds, now);
-  if (!result.changes) return null;
+  if (!(await claimLease(name, owner, milliseconds))) return null;
   return {
-    renew() {
-      if (
-        !db()
-          .prepare(
-            "UPDATE worker_leases SET expires=? WHERE name=? AND owner=?",
-          )
-          .run(Date.now() + milliseconds, name, owner).changes
-      )
+    async renew() {
+      if (!(await renewLease(name, owner, milliseconds)))
         throw new Error("Worker lease lost.");
     },
-    release() {
-      db()
-        .prepare("DELETE FROM worker_leases WHERE name=? AND owner=?")
-        .run(name, owner);
+    async release() {
+      await releaseLease(name, owner);
     },
   };
 }

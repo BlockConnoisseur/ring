@@ -21,6 +21,7 @@ import {
 import { requireHolding } from "../src/lib/solana";
 import { liveReady } from "../src/lib/config";
 import { AudioWindow } from "../src/lib/audio-window";
+import { acquireLease } from "../src/lib/operations";
 
 const base = (process.env.VOICE_PUBLIC_URL || "").replace(/\/$/, "");
 const auth = process.env.TWILIO_AUTH_TOKEN || "";
@@ -86,7 +87,7 @@ const server = createServer(async (req, res) => {
           form.CallStatus,
         )
       )
-        transact((s) => {
+        await transact((s) => {
           const g = s.games.find((g) => g.callSid === form.CallSid);
           if (g?.status === "playing") finish(s, g, "lost");
         });
@@ -118,10 +119,10 @@ const server = createServer(async (req, res) => {
       res.end(xml.toString());
       return;
     }
-    transact((s) =>
+    await transact((s) =>
       rateLimit(s, `pin:${form.CallSid}`, Date.now(), 3, 3600_000),
     );
-    const currentState = readStore();
+    const currentState = await readStore();
     const previous = currentState.games.find((g) => g.callSid === form.CallSid);
     const queue = currentState.queue.find(
       (q) =>
@@ -139,7 +140,7 @@ const server = createServer(async (req, res) => {
       return;
     }
     await requireHolding(queue.wallet);
-    const game = transact((s) => {
+    const game = await transact((s) => {
       bindMint(s, process.env.RING_TOKEN_MINT!);
       return beginGame(s, form.Digits, form.CallSid);
     });
@@ -248,7 +249,8 @@ sockets.on("connection", (ws) => {
     openedAt = 0,
     expectedMark = "",
     ending = false,
-    closed = false;
+    closed = false,
+    starting = false;
   let timer: ReturnType<typeof setTimeout> | undefined;
   let key: { choice: number; offset: number } | null = null;
   let capture = new AudioWindow(0);
@@ -263,7 +265,7 @@ sockets.on("connection", (ws) => {
     expectedMark = mark;
     const buffer = await speech(text);
     if (closed) return;
-    if (withBeep) transact((s) => startQuestionPlayback(s, gameId));
+    if (withBeep) await transact((s) => startQuestionPlayback(s, gameId));
     send({
       event: "media",
       streamSid,
@@ -290,15 +292,15 @@ sockets.on("connection", (ws) => {
     ending = true;
     clearTimer();
     windowStart = null;
-    if (gameId)
-      transact((s) => {
-        const g = getGame(s, gameId);
-        if (g.status === "playing") {
-          finish(s, g, "void");
-          s.wallets[g.wallet].cooldownUntil = 0;
-        }
-      });
     try {
+      if (gameId)
+        await transact((s) => {
+          const g = getGame(s, gameId);
+          if (g.status === "playing") {
+            finish(s, g, "void");
+            s.wallets[g.wallet].cooldownUntil = 0;
+          }
+        });
       await say(
         "The line had a technical problem. Your attempt is void. Your questions stay retired. Please try a fresh call from the website.",
         "end",
@@ -308,7 +310,7 @@ sockets.on("connection", (ws) => {
     }
   }
   async function ask() {
-    const g = getGame(readStore(), gameId);
+    const g = getGame(await readStore(), gameId);
     if (g.status !== "playing") {
       ws.close();
       return;
@@ -347,7 +349,7 @@ sockets.on("connection", (ws) => {
           choice = { choice: parsed, offset };
         break;
       }
-      const result = transact((s) =>
+      const result = await transact((s) =>
         choice
           ? answer(s, gameId, choice.choice, openedAt + choice.offset)
           : timeout(s, gameId, openedAt + 8000),
@@ -376,12 +378,13 @@ sockets.on("connection", (ws) => {
     try {
       const event = JSON.parse(raw.toString());
       if (event.event === "start") {
-        if (gameId) {
+        if (gameId || starting) {
           ws.close();
           return;
         }
+        starting = true;
         const params = event.start?.customParameters;
-        const g = getGame(readStore(), String(params?.gameId || ""));
+        const g = getGame(await readStore(), String(params?.gameId || ""));
         if (
           event.start.callSid !== g.callSid ||
           event.start.accountSid !== account ||
@@ -392,13 +395,21 @@ sockets.on("connection", (ws) => {
           return;
         }
         try {
-          transact((s) => attachStream(s, g.id, event.start.streamSid));
+          await transact((s) => attachStream(s, g.id, event.start.streamSid));
         } catch {
           ws.close();
           return;
         }
         gameId = g.id;
         streamSid = event.start.streamSid;
+        if (closed) {
+          await transact((s) => {
+            const interrupted = getGame(s, gameId);
+            if (interrupted.status === "playing")
+              finish(s, interrupted, "lost");
+          });
+          return;
+        }
         await ask();
       } else if (event.event === "media") {
         const timestamp = Number(event.media.timestamp);
@@ -420,8 +431,12 @@ sockets.on("connection", (ws) => {
         key = null;
         windowStart = latestMedia;
         openedAt = Date.now();
-        transact((s) => openQuestion(s, gameId, openedAt));
-        timer = setTimeout(() => void grade(), 8500);
+        await transact((s) => openQuestion(s, gameId, openedAt));
+        if (!closed)
+          timer = setTimeout(
+            () => void grade(),
+            Math.max(0, 8500 - (Date.now() - openedAt)),
+          );
       } else if (event.event === "dtmf" && windowStart !== null && !key) {
         const offset = Date.now() - openedAt;
         const digit = String(event.dtmf?.digit || "");
@@ -437,32 +452,59 @@ sockets.on("connection", (ws) => {
     clearTimer();
     capture.clear();
     if (gameId)
-      transact((s) => {
+      void transact((s) => {
         const g = getGame(s, gameId);
         if (g.status === "playing") finish(s, g, "lost");
-      });
+      }).catch(() =>
+        console.error(
+          "Could not record call disconnect; startup recovery will void the interrupted game.",
+        ),
+      );
   });
   ws.on("error", () => void infrastructureFailure());
   timer = setTimeout(() => ws.close(), 15000);
 });
-// One worker per database. On restart, release interrupted games without recycling questions.
-transact((s) => {
-  s.voiceHeartbeat = Date.now();
-  for (const g of s.games)
-    if (g.status === "playing") {
-      finish(s, g, "void");
-      s.wallets[g.wallet].cooldownUntil = 0;
+async function main() {
+  // Acquire ownership BEFORE recovery so another host cannot void a live call.
+  const lease = await acquireLease("voice", 45000);
+  if (!lease)
+    throw new Error(
+      "A voice worker already owns this database. Wait for its lease to expire before restarting.",
+    );
+  await transact((s) => {
+    s.voiceHeartbeat = Date.now();
+    for (const g of s.games)
+      if (g.status === "playing") {
+        finish(s, g, "void");
+        s.wallets[g.wallet].cooldownUntil = 0;
+      }
+  });
+  let renewing = false;
+  setInterval(async () => {
+    if (renewing) return;
+    renewing = true;
+    try {
+      await lease.renew();
+      await transact((s) => {
+        s.voiceHeartbeat = Date.now();
+      });
+    } catch {
+      console.error(
+        "Voice worker lost database ownership; stopping for recovery.",
+      );
+      process.exit(1);
+    } finally {
+      renewing = false;
     }
+  }, 15000);
+  server.listen(
+    Number(process.env.VOICE_PORT || 3321),
+    process.env.VOICE_HOST || "127.0.0.1",
+    () =>
+      console.log("Ring voice worker ready behind the HTTPS reverse proxy."),
+  );
+}
+void main().catch((error) => {
+  console.error(error.message);
+  process.exit(1);
 });
-setInterval(
-  () =>
-    transact((s) => {
-      s.voiceHeartbeat = Date.now();
-    }),
-  15000,
-);
-server.listen(
-  Number(process.env.VOICE_PORT || 3321),
-  process.env.VOICE_HOST || "127.0.0.1",
-  () => console.log("Ring voice worker ready behind the HTTPS reverse proxy."),
-);

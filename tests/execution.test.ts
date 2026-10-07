@@ -1,3 +1,4 @@
+process.env.RING_STORAGE = "sqlite";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { mkdtempSync } from "node:fs";
@@ -43,7 +44,7 @@ test("broadcast failure recovers identical persisted transaction; finality appli
     finalizedHeight: async () => 10,
     send: async (raw) => {
       assert.equal(raw, "signed-bytes");
-      assert.equal(operation("retry")?.raw, raw);
+      assert.equal((await operation("retry"))?.raw, raw);
       sends++;
       if (sends === 1) throw new Error("timeout after broadcast");
     },
@@ -113,15 +114,15 @@ test("expired transaction is replaced only after finalized height and history bo
   assert.equal(calls, 2);
 });
 
-test("two workers share a lease; release allows a new worker", () => {
-  const first = acquireLease("test");
+test("two workers share a lease; release allows a new worker", async () => {
+  const first = await acquireLease("test");
   assert.ok(first);
-  assert.equal(acquireLease("test"), null);
-  first.renew();
-  first.release();
-  const second = acquireLease("test");
+  assert.equal(await acquireLease("test"), null);
+  await first.renew();
+  await first.release();
+  const second = await acquireLease("test");
   assert.ok(second);
-  second.release();
+  await second.release();
 });
 
 test("metadata changes preserve unrelated token fields and replace image attachments only", () => {
@@ -158,15 +159,21 @@ test("metadata changes preserve unrelated token fields and replace image attachm
   assert.deepEqual(next.properties.creators, ["keep"]);
 });
 
-test("assets are immutable and content-addressed", () => {
-  const uri = publishAsset(Buffer.from("image bytes"), "image/png");
-  assert.equal(publishAsset(Buffer.from("image bytes"), "image/png"), uri);
-  assert.notEqual(publishAsset(Buffer.from("other bytes"), "image/png"), uri);
+test("assets are immutable and content-addressed", async () => {
+  const uri = await publishAsset(Buffer.from("image bytes"), "image/png");
   assert.equal(
-    Buffer.from(getAsset(uri.split("/").pop()!)!.bytes).toString(),
+    await publishAsset(Buffer.from("image bytes"), "image/png"),
+    uri,
+  );
+  assert.notEqual(
+    await publishAsset(Buffer.from("other bytes"), "image/png"),
+    uri,
+  );
+  assert.equal(
+    Buffer.from((await getAsset(uri.split("/").pop()!))!.bytes).toString(),
     "image bytes",
   );
-  assert.equal(getAsset("../../keypair"), undefined);
+  assert.equal(await getAsset("../../keypair"), undefined);
 });
 
 test("fee recipient changes exactly once after a verified win and finalized operation", () => {

@@ -33,6 +33,7 @@ export function nextMetadata(
   previous: Record<string, unknown>,
   proposal: Proposal,
   image?: string,
+  imageMime?: string,
 ) {
   if (proposal.kind === "description")
     return { ...previous, description: proposal.value.trim() };
@@ -64,7 +65,7 @@ export function nextMetadata(
           uri: image,
           type: proposal.image?.startsWith("data:")
             ? proposal.image.split(";")[0].slice(5)
-            : getAsset(image.split("/").pop()!)?.mime,
+            : imageMime,
         },
       ],
     },
@@ -128,7 +129,7 @@ export async function metadataTransaction(
   if (!account) throw new Error("Ring mint does not exist.");
   const image =
     proposal.kind === "picture"
-      ? publishImage(proposal.image || "")
+      ? await publishImage(proposal.image || "")
       : undefined;
   const publish = async (oldUri: string) =>
     publishAsset(
@@ -138,6 +139,7 @@ export async function metadataTransaction(
             await loadJson(oldUri.replace(/\0/g, "").trim()),
             proposal,
             image,
+            image ? (await getAsset(image.split("/").pop()!))?.mime : undefined,
           ),
         ),
       ),

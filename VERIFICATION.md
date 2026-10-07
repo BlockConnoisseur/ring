@@ -1,8 +1,10 @@
 # Verification — 2026-10-07
 
-The functional implementation was tested with isolated temporary SQLite databases. Production credentials and funds were not used.
+The functional implementation was tested with isolated temporary SQLite databases and a separate PostgreSQL 17 cluster. Production credentials and funds were not used.
 
 Observed results: **34 test cases passed** (33 in the full suite, followed by the added DAMM v2 case and its DBC companion), TypeScript checks passed, the production build passed, and `npm audit` reported **zero known vulnerabilities** after dependency hardening. The later asset-storage refinement also passed its 11 affected API/execution tests and a fresh production build. The local persistent bank contains 405 sourced questions (287 art facts and 118 science facts); one subsequent Wikidata import timed out without changing or recycling existing questions.
+
+Supabase storage work: the full 34-case suite passed again after converting storage calls to async. Seven additional PostgreSQL integration cases passed with the actual migration and a restricted runtime login. They cover concurrent state updates, rollback, SQLite import, callback races and disjoint question sets, lease takeover, reconnect recovery, asset immutability and anonymous access/RLS. The production build and TypeScript checks passed with the new adapter; the dependency audit remains at zero known vulnerabilities. These results validate local PostgreSQL behavior, not a provisioned cloud connection. Cloud project selection is still pending, and no existing Supabase project has been changed.
 
 ## Automated coverage
 

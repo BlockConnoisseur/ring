@@ -20,13 +20,13 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 const json = (body: unknown, status = 200) =>
   NextResponse.json(body, { status, headers: { "Cache-Control": "no-store" } });
-function session(req: NextRequest) {
+async function session(req: NextRequest) {
   const token = req.cookies.get("ring_session")?.value;
-  const s = token ? readStore().sessions[hash(token)] : undefined;
+  const s = token ? (await readStore()).sessions[hash(token)] : undefined;
   return s && s.expiresAt > Date.now() ? s.wallet : null;
 }
-function requireSession(req: NextRequest) {
-  const wallet = session(req);
+async function requireSession(req: NextRequest) {
+  const wallet = await session(req);
   if (!wallet) throw new Error("Connect your wallet to continue.");
   return wallet;
 }
@@ -69,7 +69,7 @@ export async function GET(
   try {
     const path = (await params).path.join("/");
     if (path.startsWith("assets/")) {
-      const asset = getAsset(path.slice(7));
+      const asset = await getAsset(path.slice(7));
       if (!asset) return json({ error: "Asset not found." }, 404);
       return new NextResponse(new Uint8Array(asset.bytes), {
         headers: {
@@ -80,8 +80,8 @@ export async function GET(
         },
       });
     }
-    const s = transact((s) => s);
-    const wallet = session(req);
+    const s = await transact((s) => s);
+    const wallet = await session(req);
     if (path === "state") {
       const waiting = s.queue.filter(
         (q) => q.status !== "done" && q.expiresAt > Date.now(),
@@ -162,7 +162,7 @@ export async function POST(
         .parse(body);
       const id = randomUUID();
       const message = `Sign in to Ring\nOrigin: ${origin()}\nWallet: ${wallet}\nNonce: ${id}\nIssued: ${new Date().toISOString()}\nThis does not authorize a transaction.`;
-      transact((s) => {
+      await transact((s) => {
         rateLimit(s, `challenge:${wallet}`);
         for (const [k, v] of Object.entries(s.challenges))
           if (v.expiresAt <= Date.now()) delete s.challenges[k];
@@ -175,7 +175,7 @@ export async function POST(
         .object({ id: z.uuid(), signature: z.string().max(100) })
         .parse(body);
       const token = randomBytes(32).toString("hex");
-      transact((s) => {
+      await transact((s) => {
         const c = s.challenges[id];
         if (!c || c.expiresAt <= Date.now())
           throw new Error("Sign-in expired. Reconnect your wallet.");
@@ -209,14 +209,14 @@ export async function POST(
     if (path === "auth/logout") {
       const token = req.cookies.get("ring_session")?.value;
       if (token)
-        transact((s) => {
+        await transact((s) => {
           delete s.sessions[hash(token)];
         });
       const res = json({ ok: true });
       res.cookies.delete("ring_session");
       return res;
     }
-    const wallet = requireSession(req);
+    const wallet = await requireSession(req);
     if (path === "proposals") {
       if (!canPost())
         throw new Error(
@@ -227,11 +227,12 @@ export async function POST(
       if (value.kind === "fees" && !validWallet(value.value))
         throw new Error("Enter a valid Solana recipient wallet.");
       if (value.kind === "picture") checkImage(value.image || "");
-      if (value.kind === "picture") value.image = publishImage(value.image!);
+      if (value.kind === "picture")
+        value.image = await publishImage(value.image!);
       if (value.kind === "description" && value.value.trim().length < 5)
         throw new Error("Write a description of at least five characters.");
       const id = randomUUID();
-      transact((s) => {
+      await transact((s) => {
         bindMint(s, process.env.RING_TOKEN_MINT!);
         rateLimit(s, `proposal:${wallet}`, Date.now(), 5, 3600_000);
         if (
@@ -259,7 +260,7 @@ export async function POST(
       await requireHolding(wallet);
       const { proposalId } = z.object({ proposalId: z.uuid() }).parse(body);
       return json(
-        transact((s) => {
+        await transact((s) => {
           bindMint(s, process.env.RING_TOKEN_MINT!);
           if (s.questions.filter((q) => !q.used).length < targetFor(s.wins))
             throw new Error(
@@ -281,13 +282,13 @@ export async function POST(
     }
     if (path === "queue/code")
       return json(
-        transact((s) => {
+        await transact((s) => {
           rateLimit(s, `code:${wallet}`, Date.now(), 5);
           return refreshCode(s, wallet);
         }),
       );
     if (path === "queue/cancel") {
-      transact((s) => cancelQueue(s, wallet));
+      await transact((s) => cancelQueue(s, wallet));
       return json({ ok: true });
     }
     if (/^proposals\/[a-f0-9-]+\/comments$/.test(path)) {
@@ -295,7 +296,7 @@ export async function POST(
       const { text } = z
         .object({ text: z.string().trim().min(1).max(500) })
         .parse(body);
-      transact((s) => {
+      await transact((s) => {
         rateLimit(s, `comments:${wallet}`, Date.now(), 5);
         const p = s.proposals.find((p) => p.id === proposalId);
         if (!p) throw new Error("Proposal not found.");

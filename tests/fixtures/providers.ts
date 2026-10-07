@@ -6,7 +6,7 @@ globalThis.fetch = async (input, init) => {
   if (url.includes("/v1/speak"))
     return new Response(new Uint8Array(1280).fill(255));
   if (url.includes("/v1/listen")) {
-    const g = readStore().games.find((g) => g.status === "playing");
+    const g = (await readStore()).games.find((g) => g.status === "playing");
     const words =
       g?.index === 1
         ? [

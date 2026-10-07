@@ -47,7 +47,7 @@ npm run build
 
 `phone:configure` previews the webhook settings; `--apply` sets them on the configured **existing** Twilio number. It never buys a number. Incoming voice is POST `VOICE_PUBLIC_URL/incoming`; completion callback is POST `/status`; the worker handles `/code` and `/stream`. Set `VOICE_PUBLIC_URL` to an HTTPS origin with no path suffix.
 
-Run four processes against the **same absolute `RING_DB_PATH`** on durable local storage:
+Run four processes against the same database. For Supabase, set `RING_STORAGE=postgres` and the server-only `RING_DATABASE_URL` on each process; follow [SUPABASE.md](SUPABASE.md) for the private schema and existing-data migration. For local SQLite, use the **same absolute `RING_DB_PATH`** on durable storage:
 
 ```sh
 npm start
@@ -56,9 +56,9 @@ npm run execute
 npm run questions:worker
 ```
 
-Set `RING_LIVE=true` after configuration. The website still closes the queue if workers are unavailable or questions run out. Test a real call before opening publicly. One voice worker owns the line; only one contestant plays at a time. Workers and SQLite use one host, not independent serverless instances.
+Set `RING_LIVE=true` after configuration. The website still closes the queue if workers are unavailable or questions run out. Test a real call before opening publicly. A database lease gives one voice worker ownership of the line; only one contestant plays at a time. Supabase allows the website and persistent workers to run on separate hosts. SQLite requires one host with shared disk. The voice worker always needs a persistent HTTPS/WebSocket host.
 
-Alternatively, the included Docker Compose stack runs the four processes and Caddy TLS proxy. Set `APP_DOMAIN` and `VOICE_DOMAIN` to DNS names pointing to the host, `APP_ORIGIN` and `RING_ASSET_ORIGIN` to the website HTTPS origin, and `VOICE_PUBLIC_URL` to the voice HTTPS origin. Place the authority file at `.secrets/authority.json`, then run `docker compose up --build -d`. Back up the `ring-data` volume, including SQLite's live WAL or a consistent SQLite backup; it contains questions already used, sessions, proposals, assets, payout policy and transaction receipts. Do not reset it on deployments. Only the executor container mounts the authority file.
+Alternatively, the included Docker Compose stack runs the four processes and Caddy TLS proxy. Set `APP_DOMAIN` and `VOICE_DOMAIN` to DNS names pointing to the host, `APP_ORIGIN` and `RING_ASSET_ORIGIN` to the website HTTPS origin, and `VOICE_PUBLIC_URL` to the voice HTTPS origin. Place the authority file at `.secrets/authority.json`, then run `docker compose up --build -d`. With SQLite, back up the `ring-data` volume, including its live WAL or a consistent SQLite backup. With Supabase, configure database backups on the chosen plan. The database contains questions already used, sessions, proposals, assets, payout policy and transaction receipts; do not reset it on deployments. Only the executor container mounts the authority file.
 
 ## Questions
 

@@ -9,33 +9,34 @@ import {
 let running = false;
 async function tick() {
   if (running || process.env.RING_LIVE !== "true") return;
-  const state = readStore();
-  if (
-    state.questions.filter((q) => !q.used).length >=
-    Math.max(100, targetFor(state.wins) * 10)
-  )
-    return;
-  if (Date.now() - (state.questionFeed?.lastSync || 0) < 300_000) return;
-  const lease = acquireLease("questions", 180000);
-  if (!lease) return;
   running = true;
+  let lease: Awaited<ReturnType<typeof acquireLease>> = null;
   try {
+    const state = await readStore();
+    if (
+      state.questions.filter((q) => !q.used).length >=
+      Math.max(100, targetFor(state.wins) * 10)
+    )
+      return;
+    if (Date.now() - (state.questionFeed?.lastSync || 0) < 300_000) return;
+    lease = await acquireLease("questions", 180000);
+    if (!lease) return;
     const offset = state.questionFeed?.offset || 0;
     const science = offset === 0 ? await fetchScienceQuestions() : [];
-    let count = transact((s) => importQuestions(s, science));
+    let count = await transact((s) => importQuestions(s, science));
     const art = await fetchQuestionBatch("paintings", offset);
-    count += transact((s) => importQuestions(s, art));
-    lease.renew();
+    count += await transact((s) => importQuestions(s, art));
+    await lease.renew();
     const novels = await fetchQuestionBatch("novels", offset);
-    lease.renew();
-    count += transact((s) => {
+    await lease.renew();
+    count += await transact((s) => {
       const count = importQuestions(s, novels);
       s.questionFeed = { offset: offset + 300, lastSync: Date.now() };
       return count;
     });
     console.log(`Ring added ${count} fresh questions.`);
   } catch {
-    transact((s) => {
+    await transact((s) => {
       s.questionFeed = {
         offset: s.questionFeed?.offset || 0,
         lastSync: Date.now(),
@@ -47,8 +48,12 @@ async function tick() {
     );
   } finally {
     running = false;
-    lease.release();
+    if (lease) await lease.release();
   }
 }
-void tick();
-setInterval(() => void tick(), 60_000);
+const run = () =>
+  void tick().catch(() =>
+    console.warn("Question worker could not reach its database."),
+  );
+run();
+setInterval(run, 60_000);

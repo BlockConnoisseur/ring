@@ -14,6 +14,7 @@ import {
   mplTokenMetadata,
 } from "@metaplex-foundation/mpl-token-metadata";
 import twilio from "twilio";
+import { closeDatabase, usesPostgres } from "../src/lib/database";
 
 async function main() {
   const required = [
@@ -34,8 +35,11 @@ async function main() {
     console.log(`${ok ? "OK" : "MISSING"} ${name}`);
     if (!ok) failures++;
   }
-  const state = readStore(),
+  const state = await readStore(),
     remaining = state.questions.filter((q) => !q.used).length;
+  console.log(
+    `OK storage: ${usesPostgres() ? "Supabase/Postgres" : "local SQLite"}`,
+  );
   console.log(
     `${remaining >= targetFor(state.wins) ? "OK" : "MISSING"} fresh questions: ${remaining}; next call needs ${targetFor(state.wins)}`,
   );
@@ -102,7 +106,9 @@ async function main() {
     "Configuration checks passed. Run a real end-to-end call before opening the line publicly.",
   );
 }
-void main().catch((e) => {
-  console.error(e.message);
-  process.exitCode = 1;
-});
+void main()
+  .catch((e) => {
+    console.error(e.message);
+    process.exitCode = 1;
+  })
+  .finally(closeDatabase);

@@ -1,3 +1,4 @@
+process.env.RING_STORAGE = "sqlite";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { mkdtempSync } from "node:fs";
@@ -250,7 +251,7 @@ test("holder signs in, posts all change types, comments, queues, recovers code, 
       400,
       "no questions or executor available",
     );
-    transact((s) => {
+    await transact((s) => {
       s.worker = { heartbeat: Date.now() };
       s.voiceHeartbeat = Date.now();
       s.questions = Array.from({ length: 10 }, (_, i) => ({
@@ -276,7 +277,7 @@ test("holder signs in, posts all change types, comments, queues, recovers code, 
       200,
     );
     assert.equal(
-      readStore().proposals.find((p) => p.id === id)?.status,
+      (await readStore()).proposals.find((p) => p.id === id)?.status,
       "open",
     );
   } finally {
