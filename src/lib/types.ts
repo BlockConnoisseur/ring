@@ -15,6 +15,15 @@ export type Proposal = {
 };
 export type PublicState = {
   live: boolean;
+  canPost?: boolean;
+  feeRecipient?: string | null;
+  feePolicy?: string;
+  lastGame?: {
+    status: string;
+    correct: number;
+    target: number;
+    execution: string | null;
+  } | null;
   required: number;
   wins: number;
   phone: string | null;

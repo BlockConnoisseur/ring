@@ -1,0 +1,6 @@
+{$APP_DOMAIN} {
+  reverse_proxy web:3320
+}
+{$VOICE_DOMAIN} {
+  reverse_proxy voice:3321
+}

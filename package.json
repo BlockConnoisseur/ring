@@ -2,6 +2,11 @@
   "name": "ring",
   "version": "0.1.0",
   "private": true,
+  "overrides": {
+    "jayson": "5.0.0",
+    "toml": "5.0.0",
+    "bigint-buffer": "file:./vendor/bigint-buffer"
+  },
   "engines": {
     "node": ">=24"
   },
@@ -12,11 +17,26 @@
     "typecheck": "next typegen && tsc --noEmit",
     "test": "tsx --test tests/*.test.ts",
     "voice": "node --env-file-if-exists=.env.local --import tsx scripts/voice-server.ts",
-    "execute": "node --env-file-if-exists=.env.local --import tsx scripts/execution-worker.ts"
+    "execute": "node --env-file-if-exists=.env.local --import tsx scripts/execution-worker.ts",
+    "doctor": "node --env-file-if-exists=.env.local --import tsx scripts/doctor.ts",
+    "questions:sync": "node --env-file-if-exists=.env.local --import tsx scripts/import-questions.ts --sync",
+    "questions:worker": "node --env-file-if-exists=.env.local --import tsx scripts/question-worker.ts",
+    "questions:import": "node --env-file-if-exists=.env.local --import tsx scripts/import-questions.ts",
+    "phone:configure": "node --env-file-if-exists=.env.local --import tsx scripts/configure-phone.ts"
   },
   "dependencies": {
     "@fontsource-variable/dm-sans": "^5.2.0",
     "@fontsource/space-mono": "^5.2.0",
+    "@metaplex-foundation/mpl-token-metadata": "^3.4.0",
+    "@metaplex-foundation/umi": "^1.6.0",
+    "@metaplex-foundation/umi-bundle-defaults": "^1.6.0",
+    "@metaplex-foundation/umi-web3js-adapters": "^1.6.0",
+    "@meteora-ag/cp-amm-sdk": "^1.5.1",
+    "@meteora-ag/dynamic-bonding-curve-sdk": "^1.5.13",
+    "@solana/spl-token": "^0.4.15",
+    "@solana/spl-token-metadata": "^0.1.6",
+    "@solana/web3.js": "^1.99.0",
+    "bn.js": "^5.2.5",
     "bs58": "^6.0.0",
     "next": "16.4.0",
     "react": "19.3.0",
@@ -28,6 +48,7 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.55.0",
+    "@types/bn.js": "^5.2.0",
     "@types/node": "^24",
     "@types/react": "^19",
     "@types/react-dom": "^19",

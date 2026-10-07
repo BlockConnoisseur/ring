@@ -1,26 +1,26 @@
-# Ring verification · 2026-10-07
+# Verification — 2026-10-07
 
-## Automated checks
+The functional implementation was tested with isolated temporary SQLite databases. Production credentials and funds were not used.
 
-- `npm test`: 20 passing tests covering the game and authenticated API.
-- `npm run typecheck`: passed.
-- `npm run build`: passed, with no build tracing warning after scoping the runtime database path. Node 24 still labels its built-in SQLite API experimental.
-- Dependency installation: npm reported zero known vulnerabilities at install time.
+Observed results: **34 test cases passed** (33 in the full suite, followed by the added DAMM v2 case and its DBC companion), TypeScript checks passed, the production build passed, and `npm audit` reported **zero known vulnerabilities** after dependency hardening. The later asset-storage refinement also passed its 11 affected API/execution tests and a fresh production build. The local persistent bank contains 405 sourced questions (287 art facts and 118 science facts); one subsequent Wikidata import timed out without changing or recycling existing questions.
 
-## Browser checks
+## Automated coverage
 
-- Desktop: inspected the hero, rule strip, full switchboard, hotline, rule section, and footer.
-- Mobile: inspected at a 390 × 844 viewport. Reworked the hero to stack the phone below the title. Document width did not exceed the viewport.
-- Composer: selected description, entered a title/name/body, saved a local draft, and verified the draft appeared in the switchboard. Reopened it with its content intact. Discarded the test draft through the UI afterward.
-- Wallet: opened the wallet dialog and exercised a failed wallet connection. The error was visible and the dialog stayed usable. No wallet transaction or live holding claim was made.
-- Keyboard: Tab moved from the main proposal action to the phone action, with a visible solid focus outline. Native dialogs provide focus containment, Escape dismissal, and return focus.
-- Motion: inspected the `prefers-reduced-motion` rule, which disables animation/transitions and suppresses the phone lift. The browser's OS preference was not changed.
-- Browser console: no error or warning entries in the final inspected state.
+- Signed wallet login rejects forgery, replay and cross-origin mutation. A wallet holding one raw token unit can publish each proposal type, comment, queue, replace its private code and cancel; zero balances cannot publish.
+- Game progression enforces 3, 5, 7… consecutive answers, eight-second deadlines, global retirement, ten-minute cooldowns and one active caller.
+- The phone integration test starts the real voice server as a child process, sends signed Twilio HTTP callbacks, opens a signed WebSocket, plays three eight-second windows, uses both DTMF and simulated speech, and verifies one win and one execution record. An earlier spoken correct answer beats a later wrong keypad input. Duplicate completion callbacks do not duplicate the win. Twilio and Deepgram responses are test fixtures, not live provider calls.
+- Audio tests cover clipping, duplicated frames and coverage checks.
+- Transaction journal tests cover a crash/timeout after broadcast, recovery with identical bytes, changed-intent rejection, finality, expiry, and a still-processed signature that must not be replaced.
+- Meteora DBC and DAMM v2 instruction tests use the real SDK builders with fixture account state and verify creator/position fee instructions, recipient ATAs, fixed authority, and no liquidity removal or token-account close/treasury transfer.
+- Metadata tests verify preservation of unrelated fields and media. Asset tests verify immutable content addressing. Fee application is idempotent.
+- Integer conversion tests cover unsigned 64/128/256-bit boundaries, overflow, negative input and input-buffer preservation.
 
-Screenshots: [desktop](docs/ring-desktop.jpg), [mobile](docs/ring-mobile.jpg), [hero](docs/ring-hero.jpg).
+The installed Meteora stack uses web3.js/Anchor. Dependency overrides update Jayson and TOML, and replace the vulnerable native `bigint-buffer` addon with the small bounds-checked JavaScript codec in `vendor/`. No native converter is loaded. Recheck audit results when updating dependencies.
 
-## Verification limits
+## Limits
 
-No live phone number, token mint, provider credentials, production question bank, or transaction signer was supplied. Consequently, no real telephone call, production wallet holding check, AI speech-provider request, Meteora fee claim, or token metadata transaction was run. The phone worker and authenticated execution boundary are implemented but require provider integration testing. The on-chain adapter itself remains to be implemented against the selected token configuration. Fee proposals are blocked at the API until their duration and payout policy are decided.
+The previous turn's desktop/mobile design screenshots remain in `docs/`. This turn's browser check was blocked by the browser tool's URL security policy; the new result/code-recovery UI was not visually rechecked.
 
-This is a working prelaunch website and tested game/application foundation, not a claim that Ring is live on mainnet.
+No public mint, real phone credentials, authority signer, or HTTPS deployment was supplied. Consequently there has been no real handset call or devnet/mainnet metadata/fee transaction. The tests exercise protocol handling and SDK instruction construction, not actual deployed pool permissions, provider audio latency, token UI cache refresh, or real fund delivery. Docker/Caddy deployment files are supplied but the stack has not been deployed here.
+
+Run `npm run doctor` with the real environment, verify its authority/pool/phone checks, and perform a live acceptance call on the chosen token setup before opening the line publicly.

@@ -1,5 +1,6 @@
 import { randomInt, randomUUID, createHash } from "node:crypto";
 import type { Proposal } from "./types";
+import type { FeeSource } from "./meteora";
 export const COOLDOWN_MS = 600_000;
 export const ANSWER_MS = 8_000;
 export const targetFor = (wins: number) => 3 + wins * 2;
@@ -42,8 +43,18 @@ export type Execution = {
   proposalId: string;
   status: "pending" | "applied" | "holding_required";
   transaction?: string;
+  settlement?: FeeCycle;
+  error?: string;
+};
+export type FeeCycle = {
+  id: string;
+  recipient: string;
+  sources: FeeSource[];
+  completed: Record<string, string>;
+  createdAt: number;
 };
 export type Store = {
+  tokenMint?: string;
   wins: number;
   wallets: Record<string, { username: string; cooldownUntil: number }>;
   challenges: Record<
@@ -64,7 +75,23 @@ export type Store = {
   games: Game[];
   executions: Execution[];
   limits: Record<string, { count: number; expiresAt: number }>;
+  fees?: {
+    recipient: string;
+    since: number;
+    proposalId?: string;
+    lastClaimAt: number;
+    cycle?: FeeCycle;
+    receipts: { recipient: string; transaction: string; at: number }[];
+  };
+  worker?: { heartbeat: number; error?: string };
+  voiceHeartbeat?: number;
+  questionFeed?: { offset: number; lastSync: number; error?: string };
 };
+export function bindMint(s: Store, mint: string) {
+  if (s.tokenMint && s.tokenMint !== mint)
+    throw new Error("This database belongs to a different token mint.");
+  s.tokenMint = mint;
+}
 export const emptyStore = (): Store => ({
   wins: 0,
   wallets: {},
@@ -201,6 +228,36 @@ export function beginGame(
   first.status = "playing";
   first.expiresAt = now + 60 * 60_000;
   return g;
+}
+export function refreshCode(s: Store, wallet: string, now = Date.now()) {
+  const q = s.queue.find(
+    (q) => q.wallet === wallet && q.status === "waiting" && q.expiresAt > now,
+  );
+  if (!q) throw new Error("No waiting proposal. Join the queue first.");
+  let code: string;
+  do {
+    code = String(randomInt(100000, 1000000));
+  } while (
+    s.queue.some(
+      (other) => other.status !== "done" && other.codeHash === hash(code),
+    )
+  );
+  q.codeHash = hash(code);
+  return {
+    code,
+    expiresAt: q.expiresAt,
+    position:
+      s.queue
+        .filter((q) => q.status !== "done" && q.expiresAt > now)
+        .indexOf(q) + 1,
+  };
+}
+export function cancelQueue(s: Store, wallet: string) {
+  const q = s.queue.find((q) => q.wallet === wallet && q.status === "waiting");
+  if (!q) throw new Error("Only a waiting attempt can be canceled.");
+  q.status = "done";
+  const p = s.proposals.find((p) => p.id === q.proposalId);
+  if (p?.status === "queued") p.status = "open";
 }
 export function startQuestionPlayback(
   s: Store,

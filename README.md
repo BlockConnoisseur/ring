@@ -1,85 +1,84 @@
 # Ring
 
-A memecoin with a phone number. Hold any positive amount of Ring, post a supported token change, then call an AI trivia host. A win earns execution of the exact locked proposal.
+Hold any positive amount of Ring, post a token change, and call its real phone number. Answer three multiple-choice questions correctly in a row to apply your proposal. Every win adds two questions to the next target. Answers close eight seconds after the question/options finish and the beep plays. Each wallet gets one attempt every ten minutes.
 
-## Run
+## Run locally
 
-Use Node.js 24 or newer. From `ring-web`:
+Requires Node 24+. This app is separate from the existing Halo application.
 
 ```sh
 npm ci
 npm run dev
 ```
 
-Open http://127.0.0.1:3320. No credentials are needed to preview the site, compose a proposal, save a private browser draft, or view the rules. Ring is intentionally in prelaunch mode by default. This is a separate application; the existing Halo application is unchanged.
+Open http://127.0.0.1:3320. The design, proposal composer, local drafts and wallet sign-in work without launch credentials. Real posting opens once the exact mint is configured and a signed-in wallet holds at least one raw unit. The call queue also requires fresh questions, a healthy voice worker and a healthy execution worker.
 
-## Implemented
+## Implemented functionality
 
-- Original responsive black, white, and red interface with a custom telephone image, proposal board, composer, wallet dialog, and call preparation panel.
-- Real Phantom/Solflare message-based sign-in, nonce expiration, signature verification, HTTP-only sessions, and same-origin mutation checks.
-- Solana holding checks against the configured exact token mint. Raw integer balances are used, so even the smallest nonzero fraction counts.
-- Durable proposal/comment storage, private six-digit call codes, one active contestant, and locked proposal payloads.
-- Global target of `3 + 2 × wins`; every question must be correct in the same attempt. One incorrect answer or timeout ends the run.
-- One attempt per wallet every ten minutes, starting when the first question is played. Disconnects count. A verified infrastructure failure voids the attempt.
-- Globally reserved questions, shuffled choices, and no question reuse. Exhausting the question bank stops new games without consuming an attempt.
-- Signed Twilio incoming-call webhooks, authenticated bidirectional streams, Deepgram speech synthesis/recognition, and A/B/C/D or keypad 1–4 input.
-- Answer audio is clipped to eight seconds after the playback mark. Recognition latency is outside the answer window. Only captured audio inside the window is graded; raw call recordings are not persisted.
-- A durable execution outbox with a stable idempotency key and holding recheck. Global difficulty increments once per verified win, independently of transaction retries.
+- Phantom/Solflare signed wallet login, single-use challenges and HttpOnly sessions.
+- On-chain holding checks before publishing, queueing, playing and signing a winning change.
+- Persistent proposal board and comments; picture, description and fee-wallet proposals; immutable submitted payloads.
+- Private six-digit call codes tied to the wallet/proposal, queue order, code replacement and cancellation.
+- Twilio webhook signature verification and authenticated bidirectional Media Streams; Deepgram voice synthesis and transcription.
+- Eight seconds of answer audio after the playback mark, A/B/C/D or keypad 1–4, first valid answer wins. Transcription latency never extends the window.
+- Global question retirement and randomized option order; sourced question imports and an automatic refill worker. No stock means no new attempt.
+- A global target of `3 + 2 × wins`, with durable cooldowns, disconnect handling and duplicate-callback protection.
+- **In-repo Solana executor**: mutable Metaplex/SPL metadata and Token-2022 on-mint metadata updates, immutable public image/JSON assets, Meteora DBC creator fee claims and owned DAMM v2 position fee claims after migration.
+- Signed transactions are stored before broadcast, retried with identical bytes and reconciled at finality before a proposal is marked applied. Website callers cannot submit arbitrary transaction instructions.
+- Live call/result and execution states, confirmed transaction links, worker readiness checks, and a configuration doctor.
 
-## What is not live yet
+## Fee policy
 
-The token has not been launched, a phone number has not been purchased, and no mainnet transaction has been sent. No credentials were added. The following are still needed:
+The chosen recipient receives Ring's project-controlled creator trading fees until another fee proposal is applied. Before switching, the worker finishes its current payout and settles fees to the previous recipient. Fees collected in that settlement belong to the old recipient; subsequent collections belong to the new one. The policy change gets a signed Solana memo receipt; individual payouts have their own fee-claim receipts. The database/worker enforces routing; the memo is an audit record, not an on-chain routing contract.
 
-1. The Ring mint and an RPC endpoint, plus the Meteora launch configuration and metadata update authority.
-2. A real Twilio number, account credentials, HTTPS/WebSocket routing, and Deepgram credentials. The live provider flow requires a real telephone test before opening it to players.
-3. A reviewed, sourced question bank. Import tooling rejects matching fact keys and normalized exact text; a content reviewer must also reject paraphrases, ambiguous answers, and uneven difficulty. No automatic claim of semantic uniqueness is made.
-4. A token-specific execution adapter implementing [EXECUTION.md](EXECUTION.md). This repository provides the authenticated boundary and retry worker, **not the on-chain signer or Meteora fee router**.
-5. A decision on how long a winner receives fees. Fee proposals can be drafted, but the API rejects their publication until this policy is implemented. There is no implied one-hour term or permanent fee transfer.
+The worker retains the creator/position authority. Protocol fees, another LP's fees, liquidity, token supply and unrelated treasury balances are outside the action set. SOL-denominated fees arrive in the recipient's **wrapped SOL token account**. No treasury token account is closed or swept. This default policy can be changed before launch; no live fee routing has been activated.
 
-Do not set `RING_LIVE=true` until these integrations have been tested. The UI and phone worker also require all configured integrations to be present before allowing play.
+## Configure a real deployment
 
-## Phone deployment
+Copy `.env.example` to `.env.local` outside Git. Supply the public mint/pool addresses, RPC URL, Twilio number and credentials, Deepgram key, HTTPS origins and an authority keypair file. The signer must be the DBC creator, own its fee-bearing DAMM v2 positions after migration, and retain the token metadata update authority. Keep a small SOL balance for transaction fees, account rent and metadata growth. Ring never asks players for their private keys.
 
-Copy `.env.example` to `.env.local` and configure it outside Git. Keep secrets on the server.
+```sh
+npm run questions:sync
+npm run phone:configure
+npm run phone:configure -- --apply
+npm run doctor
+npm run build
+```
 
-- Run the Next.js application with `npm run build` then `npm start`.
-- Run `npm run voice` as one persistent worker behind an HTTPS reverse proxy that supports WebSocket upgrades.
-- Run `npm run execute` as one persistent execution worker after the execution adapter exists.
-- All three processes must use the **same absolute `RING_DB_PATH` on persistent local storage**. This initial version uses Node SQLite and a serialized application-state document. It is for a single app host and one active phone contestant, not horizontally scaled serverless instances.
-- Set the Twilio number's incoming voice webhook to `VOICE_PUBLIC_URL/incoming` using POST, and call status callback to `VOICE_PUBLIC_URL/status` using POST. The worker uses `/code` and `/stream` internally.
-- `APP_ORIGIN` must match the site's real origin exactly. `VOICE_PUBLIC_URL` must be HTTPS with no path suffix. Terminate TLS at the reverse proxy and keep the local worker private.
-- Configure reverse-proxy body limits and IP request limits for the public API and inbound calls. App-level wallet/call rate limits are included but do not establish one human per wallet.
+`phone:configure` previews the webhook settings; `--apply` sets them on the configured **existing** Twilio number. It never buys a number. Incoming voice is POST `VOICE_PUBLIC_URL/incoming`; completion callback is POST `/status`; the worker handles `/code` and `/stream`. Set `VOICE_PUBLIC_URL` to an HTTPS origin with no path suffix.
 
-The first caller is active; other players wait on the website. Codes expire after ten minutes. Players whose code expires can rejoin; waiting never consumes their cooldown. The definitive target is captured at game start.
+Run four processes against the **same absolute `RING_DB_PATH`** on durable local storage:
+
+```sh
+npm start
+npm run voice
+npm run execute
+npm run questions:worker
+```
+
+Set `RING_LIVE=true` after configuration. The website still closes the queue if workers are unavailable or questions run out. Test a real call before opening publicly. One voice worker owns the line; only one contestant plays at a time. Workers and SQLite use one host, not independent serverless instances.
+
+Alternatively, the included Docker Compose stack runs the four processes and Caddy TLS proxy. Set `APP_DOMAIN` and `VOICE_DOMAIN` to DNS names pointing to the host, `APP_ORIGIN` and `RING_ASSET_ORIGIN` to the website HTTPS origin, and `VOICE_PUBLIC_URL` to the voice HTTPS origin. Place the authority file at `.secrets/authority.json`, then run `docker compose up --build -d`. Back up the `ring-data` volume, including SQLite's live WAL or a consistent SQLite backup; it contains questions already used, sessions, proposals, assets, payout policy and transaction receipts. Do not reset it on deployments. Only the executor container mounts the authority file.
 
 ## Questions
 
-Import a reviewed JSON file:
-
-```sh
-node --env-file-if-exists=.env.local --import tsx scripts/import-questions.ts reviewed-questions.json
-```
-
-Each item has this shape (example only, not a bank to repeatedly reuse):
+`npm run questions:sync` imports canonical facts from Wikidata paintings/novels and the PubChem periodic table. An optional numeric argument selects the next Wikidata page: `npm run questions:sync -- 300`. `npm run questions:worker` refills low stock, persists its cursor and retries source outages. Sources can be incomplete or disputed; review the generated wording/difficulty for the intended audience. Manually authored questions can be imported with `npm run questions:import -- reviewed.json`:
 
 ```json
-{
-  "fact": "unique-canonical-fact-key",
-  "text": "An unambiguous question with a verified answer?",
-  "choices": ["Choice one", "Choice two", "Choice three", "Choice four"],
-  "correct": 0,
-  "source": "https://an-authoritative-source.example/page"
-}
+[{"fact":"unique-entity-property-key","text":"An unambiguous question?","choices":["One","Two","Three","Four"],"correct":0,"source":"https://source.example/fact"}]
 ```
 
-`correct` is zero-based. Reserve enough questions for a full attempt before a call starts. Reserved questions remain retired even when the caller loses or disconnects. Monitor supply; the required number grows without a cap.
+Fact keys, normalized text and duplicate choices are checked. Sourced questions reuse an entity/property key even if wording changes, preventing that fact from being reintroduced. Manual imports must use consistent fact keys; there is no claim that arbitrary prose paraphrases are perfectly detected. The entire reserved set stays retired even after a loss, disconnect or infrastructure failure.
 
-## Verification
+## Verification and remaining activation
 
 ```sh
 npm test
 npm run typecheck
 npm run build
+npm audit
 ```
 
-Tests cover game progression, deadlines, callbacks, stream exclusivity, cooldowns, question exhaustion, disjoint question sets, queue order, wallet signatures/replay, origin checks, prelaunch gating, and tiny/zero/wrong-mint balances. Test databases use isolated temporary directories. See [DESIGN.md](DESIGN.md) for the art direction, research, asset prompt, and [VERIFICATION.md](VERIFICATION.md) for observed results.
+Tests include an actual local HTTP/WebSocket call through the voice server with simulated providers, plus authenticated API flows, fee instruction construction, deadlines, replay protection, transaction recovery and asset preservation. See [VERIFICATION.md](VERIFICATION.md) and [EXECUTION.md](EXECUTION.md).
+
+No token was launched, phone number purchased, signer funded, or mainnet transaction sent. Live operation still requires the project's credentials, token configuration and durable HTTPS host. These are setup inputs, not an external execution adapter left to implement.

@@ -1,0 +1,8 @@
+{
+  "name": "@ring/bigint-buffer",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Bounds-checked native-free unsigned BigInt conversion for Ring's Solana dependencies",
+  "main": "index.cjs",
+  "types": "index.d.ts"
+}

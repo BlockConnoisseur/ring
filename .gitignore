@@ -1,0 +1,7 @@
+.env*
+!.env.example
+.secrets/
+*.keypair.json
+.data/
+.next/
+node_modules/

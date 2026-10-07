@@ -1,0 +1,9 @@
+node_modules
+.next
+.data
+.env*
+.secrets
+*.keypair.json
+docs
+tests
+.git

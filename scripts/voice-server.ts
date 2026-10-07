@@ -5,6 +5,7 @@ import twilio from "twilio";
 import { readStore, transact } from "../src/lib/store";
 import {
   answer,
+  bindMint,
   attachStream,
   beginGame,
   finish,
@@ -19,7 +20,7 @@ import {
 } from "../src/lib/game";
 import { requireHolding } from "../src/lib/solana";
 import { liveReady } from "../src/lib/config";
-import { executeWin } from "../src/lib/executor";
+import { AudioWindow } from "../src/lib/audio-window";
 
 const base = (process.env.VOICE_PUBLIC_URL || "").replace(/\/$/, "");
 const auth = process.env.TWILIO_AUTH_TOKEN || "";
@@ -138,7 +139,10 @@ const server = createServer(async (req, res) => {
       return;
     }
     await requireHolding(queue.wallet);
-    const game = transact((s) => beginGame(s, form.Digits, form.CallSid));
+    const game = transact((s) => {
+      bindMint(s, process.env.RING_TOKEN_MINT!);
+      return beginGame(s, form.Digits, form.CallSid);
+    });
     if (game.status !== "playing") {
       res.end(
         message(
@@ -247,8 +251,7 @@ sockets.on("connection", (ws) => {
     closed = false;
   let timer: ReturnType<typeof setTimeout> | undefined;
   let key: { choice: number; offset: number } | null = null;
-  let audio = Buffer.alloc(64000, 255);
-  let frameCount = 0;
+  let capture = new AudioWindow(0);
   const send = (data: unknown) => {
     if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(data));
   };
@@ -326,8 +329,8 @@ sockets.on("connection", (ws) => {
     windowStart = null;
     clearTimer();
     try {
-      if (frameCount < 32000) throw new Error("Incomplete answer audio");
-      const words = await recognize(audio);
+      if (capture.covered < 32000) throw new Error("Incomplete answer audio");
+      const words = await recognize(capture.audio);
       if (closed) return;
       let choice = key;
       for (const word of words) {
@@ -349,15 +352,12 @@ sockets.on("connection", (ws) => {
           ? answer(s, gameId, choice.choice, openedAt + choice.offset)
           : timeout(s, gameId, openedAt + 8000),
       );
-      audio.fill(255);
+      capture.clear();
       if (result.status === "won") {
         ending = true;
         await say(
           `That's ${result.target} in a row. You won. Your locked proposal is queued for execution. The next caller needs ${result.target + 2}. Check the website for confirmation.`,
           "end",
-        );
-        void executeWin(gameId).catch(() =>
-          console.warn("A win is waiting for its execution adapter."),
         );
       } else if (result.status === "lost") {
         ending = true;
@@ -406,14 +406,7 @@ sockets.on("connection", (ws) => {
         const bytes = Buffer.from(event.media.payload, "base64");
         latestMedia = Math.max(latestMedia, timestamp + bytes.length / 8);
         if (windowStart !== null) {
-          const offset = Math.round((timestamp - windowStart) * 8);
-          const sourceStart = Math.max(0, -offset),
-            destStart = Math.max(0, offset);
-          const count = Math.min(bytes.length - sourceStart, 64000 - destStart);
-          if (count > 0) {
-            bytes.copy(audio, destStart, sourceStart, sourceStart + count);
-            frameCount += count;
-          }
+          capture.add(timestamp, bytes);
         }
       } else if (event.event === "mark" && event.mark.name === expectedMark) {
         clearTimer();
@@ -423,8 +416,7 @@ sockets.on("connection", (ws) => {
         }
         if (!expectedMark.startsWith("question:")) return;
         expectedMark = "";
-        audio = Buffer.alloc(64000, 255);
-        frameCount = 0;
+        capture = new AudioWindow(latestMedia);
         key = null;
         windowStart = latestMedia;
         openedAt = Date.now();
@@ -443,7 +435,7 @@ sockets.on("connection", (ws) => {
   ws.on("close", () => {
     closed = true;
     clearTimer();
-    audio.fill(255);
+    capture.clear();
     if (gameId)
       transact((s) => {
         const g = getGame(s, gameId);
@@ -455,12 +447,22 @@ sockets.on("connection", (ws) => {
 });
 // One worker per database. On restart, release interrupted games without recycling questions.
 transact((s) => {
+  s.voiceHeartbeat = Date.now();
   for (const g of s.games)
     if (g.status === "playing") {
       finish(s, g, "void");
       s.wallets[g.wallet].cooldownUntil = 0;
     }
 });
-server.listen(Number(process.env.VOICE_PORT || 3321), "127.0.0.1", () =>
-  console.log("Ring voice worker ready behind the HTTPS reverse proxy."),
+setInterval(
+  () =>
+    transact((s) => {
+      s.voiceHeartbeat = Date.now();
+    }),
+  15000,
+);
+server.listen(
+  Number(process.env.VOICE_PORT || 3321),
+  process.env.VOICE_HOST || "127.0.0.1",
+  () => console.log("Ring voice worker ready behind the HTTPS reverse proxy."),
 );

@@ -1,3 +1,4 @@
+import type { Store } from "./game";
 export function liveReady() {
   return (
     process.env.RING_LIVE === "true" &&
@@ -8,9 +9,22 @@ export function liveReady() {
       process.env.TWILIO_ACCOUNT_SID &&
       process.env.VOICE_PUBLIC_URL &&
       process.env.DEEPGRAM_API_KEY &&
-      process.env.RING_EXECUTOR_URL &&
-      process.env.RING_EXECUTOR_SECRET,
+      process.env.RING_AUTHORITY_KEYPAIR &&
+      process.env.RING_DBC_POOL &&
+      process.env.RING_INITIAL_FEE_RECIPIENT &&
+      (process.env.RING_ASSET_ORIGIN || process.env.APP_ORIGIN),
     )
+  );
+}
+export const canPost = () => Boolean(process.env.RING_TOKEN_MINT);
+export function acceptingCalls(s: Store) {
+  return (
+    liveReady() &&
+    !!s.worker &&
+    !s.worker.error &&
+    Date.now() - s.worker.heartbeat < 120000 &&
+    Date.now() - (s.voiceHeartbeat || 0) < 45000 &&
+    s.questions.filter((q) => !q.used).length >= 3 + s.wins * 2
   );
 }
 export function requireLive() {

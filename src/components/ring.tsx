@@ -159,6 +159,11 @@ export default function Ring() {
         } catch {}
       }
       setState(next);
+      setSelected((current) =>
+        current
+          ? next.proposals.find((p) => p.id === current.id) || current
+          : null,
+      );
       setNetworkError("");
     } catch {
       setNetworkError(
@@ -349,6 +354,27 @@ export default function Ring() {
         `proposals/${selected.id}`,
       );
       setComments(data.comments);
+      await refresh();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function queueAction(action: "code" | "cancel") {
+    setBusy(true);
+    setError("");
+    try {
+      const result = await api<NonNullable<PublicState["queue"]>>(
+        `queue/${action}`,
+        {},
+      );
+      if (action === "code")
+        sessionStorage.setItem(
+          `ring:code:${state.session!.wallet}`,
+          JSON.stringify(result),
+        );
+      else sessionStorage.removeItem(`ring:code:${state.session!.wallet}`);
       await refresh();
     } catch (e) {
       setError((e as Error).message);
@@ -998,11 +1024,11 @@ export default function Ring() {
                   placeholder="Why this change?"
                 />
                 <div className="proposal-disclosure">
-                  {state.live
+                  {state.canPost
                     ? "Your exact proposal will be locked when you join the queue."
                     : "Ring is in prelaunch. You can save your idea as a private draft now."}
                   {draft.kind === "fees" &&
-                    " Only project-controlled creator fees are eligible. The fee duration must be published before live play opens."}
+                    " The winning wallet receives Ring’s creator fees until the next fee proposal is applied. Previous fees settle first. SOL payouts arrive as wrapped SOL."}
                 </div>
                 {error && (
                   <p className="form-error" role="alert">
@@ -1013,7 +1039,7 @@ export default function Ring() {
                   <button
                     className="primary-button"
                     type="submit"
-                    disabled={busy || !state.live}
+                    disabled={busy || !state.canPost}
                   >
                     {busy ? "Posting…" : "Post proposal"}
                     <Arrow />
@@ -1041,7 +1067,7 @@ export default function Ring() {
                       open("wallet");
                     }}
                   >
-                    Connect wallet to post when the line opens ↗
+                    Connect wallet to post ↗
                   </button>
                 )}
               </form>
@@ -1116,6 +1142,44 @@ export default function Ring() {
                   Your next attempt is in {countdown}.
                 </p>
               ) : null}
+              {state.lastGame && (
+                <p className="proposal-disclosure" aria-live="polite">
+                  {state.lastGame.status === "playing"
+                    ? `On the call: ${state.lastGame.correct} of ${state.lastGame.target} correct.`
+                    : state.lastGame.execution === "applied"
+                      ? "You won. Your token change is confirmed."
+                      : state.lastGame.execution === "holding_required"
+                        ? "You won. Hold Ring in your connected wallet to apply your change."
+                        : state.lastGame.status === "won"
+                          ? "You won. Your change is waiting for chain confirmation."
+                          : state.lastGame.status === "void"
+                            ? "The call had a technical problem. Your attempt was restored."
+                            : "Your last run ended. Try again when your cooldown expires."}
+                </p>
+              )}
+              {state.queue && state.lastGame?.status !== "playing" && (
+                <div className="form-actions">
+                  <button
+                    className="text-button"
+                    disabled={busy}
+                    onClick={() => void queueAction("code")}
+                  >
+                    Get a new private code
+                  </button>
+                  <button
+                    className="text-button"
+                    disabled={busy}
+                    onClick={() => void queueAction("cancel")}
+                  >
+                    Leave queue
+                  </button>
+                </div>
+              )}
+              {error && (
+                <p className="form-error" role="alert">
+                  {error}
+                </p>
+              )}
               {state.live && state.phone && state.queue?.position === 1 ? (
                 <a className="primary-button" href={`tel:${state.phone}`}>
                   <PhoneIcon />

@@ -1,0 +1,39 @@
+x-ring: &ring
+  image: ring-local
+  build: .
+  restart: unless-stopped
+  env_file: .env.local
+  environment:
+    RING_DB_PATH: /data/ring.sqlite
+    RING_AUTHORITY_KEYPAIR: /run/secrets/ring-authority
+    VOICE_HOST: 0.0.0.0
+  volumes:
+    - ring-data:/data
+services:
+  web:
+    <<: *ring
+    command: npm start
+  voice:
+    <<: *ring
+    command: npm run voice
+  executor:
+    <<: *ring
+    command: npm run execute
+    volumes:
+      - ring-data:/data
+      - ./.secrets/authority.json:/run/secrets/ring-authority:ro
+  questions:
+    <<: *ring
+    command: npm run questions:worker
+  proxy:
+    image: caddy:2
+    restart: unless-stopped
+    ports: ["80:80", "443:443"]
+    env_file: .env.local
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+    depends_on: [web, voice]
+volumes:
+  ring-data:
+  caddy-data:

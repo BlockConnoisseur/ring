@@ -4,9 +4,18 @@ import bs58 from "bs58";
 import nacl from "tweetnacl";
 import { z } from "zod";
 import { readStore, transact } from "@/lib/store";
-import { enqueue, hash, rateLimit, targetFor } from "@/lib/game";
+import {
+  enqueue,
+  hash,
+  rateLimit,
+  targetFor,
+  refreshCode,
+  cancelQueue,
+  bindMint,
+} from "@/lib/game";
 import { holdsRing, requireHolding, validWallet } from "@/lib/solana";
-import { liveReady, origin, requireLive } from "@/lib/config";
+import { acceptingCalls, canPost, origin, requireLive } from "@/lib/config";
+import { getAsset, publishImage } from "@/lib/assets";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 const json = (body: unknown, status = 200) =>
@@ -59,6 +68,18 @@ export async function GET(
 ) {
   try {
     const path = (await params).path.join("/");
+    if (path.startsWith("assets/")) {
+      const asset = getAsset(path.slice(7));
+      if (!asset) return json({ error: "Asset not found." }, 404);
+      return new NextResponse(new Uint8Array(asset.bytes), {
+        headers: {
+          "Content-Type": asset.mime,
+          "Cache-Control": "public, max-age=31536000, immutable",
+          "Access-Control-Allow-Origin": "*",
+          "X-Content-Type-Options": "nosniff",
+        },
+      });
+    }
     const s = transact((s) => s);
     const wallet = session(req);
     if (path === "state") {
@@ -66,8 +87,26 @@ export async function GET(
         (q) => q.status !== "done" && q.expiresAt > Date.now(),
       );
       const qi = waiting.findIndex((q) => q.wallet === wallet);
+      const lastGame = wallet
+        ? s.games.findLast((g) => g.wallet === wallet)
+        : undefined;
       return json({
-        live: liveReady(),
+        live: acceptingCalls(s),
+        canPost: canPost(),
+        feePolicy:
+          "Creator fees go to the winning wallet until the next fee proposal is applied. Existing fees settle to the previous recipient. SOL fees arrive as wrapped SOL.",
+        feeRecipient:
+          s.fees?.recipient || process.env.RING_INITIAL_FEE_RECIPIENT || null,
+        lastGame: lastGame
+          ? {
+              status: lastGame.status,
+              correct: lastGame.index,
+              target: lastGame.target,
+              execution:
+                s.executions.find((e) => e.gameId === lastGame.id)?.status ||
+                null,
+            }
+          : null,
         required: targetFor(s.wins),
         wins: s.wins,
         phone: process.env.RING_PHONE_NUMBER || null,
@@ -179,18 +218,21 @@ export async function POST(
     }
     const wallet = requireSession(req);
     if (path === "proposals") {
-      requireLive();
+      if (!canPost())
+        throw new Error(
+          "The Ring token must be configured before proposals open.",
+        );
       await requireHolding(wallet);
       const value = proposalSchema.parse(body);
-      if (value.kind === "fees")
-        throw new Error(
-          "Fee proposals open after the payout duration and execution policy are configured.",
-        );
+      if (value.kind === "fees" && !validWallet(value.value))
+        throw new Error("Enter a valid Solana recipient wallet.");
       if (value.kind === "picture") checkImage(value.image || "");
+      if (value.kind === "picture") value.image = publishImage(value.image!);
       if (value.kind === "description" && value.value.trim().length < 5)
         throw new Error("Write a description of at least five characters.");
       const id = randomUUID();
       transact((s) => {
+        bindMint(s, process.env.RING_TOKEN_MINT!);
         rateLimit(s, `proposal:${wallet}`, Date.now(), 5, 3600_000);
         if (
           Object.entries(s.wallets).some(
@@ -216,7 +258,37 @@ export async function POST(
       requireLive();
       await requireHolding(wallet);
       const { proposalId } = z.object({ proposalId: z.uuid() }).parse(body);
-      return json(transact((s) => enqueue(s, wallet, proposalId)));
+      return json(
+        transact((s) => {
+          bindMint(s, process.env.RING_TOKEN_MINT!);
+          if (s.questions.filter((q) => !q.used).length < targetFor(s.wins))
+            throw new Error(
+              "Fresh questions are being prepared. No attempt was used.",
+            );
+          if (
+            !s.worker ||
+            Date.now() - s.worker.heartbeat > 120000 ||
+            s.worker.error
+          )
+            throw new Error(
+              "The token executor is offline. No attempt was used.",
+            );
+          if (Date.now() - (s.voiceHeartbeat || 0) > 45000)
+            throw new Error("The phone host is offline. No attempt was used.");
+          return enqueue(s, wallet, proposalId);
+        }),
+      );
+    }
+    if (path === "queue/code")
+      return json(
+        transact((s) => {
+          rateLimit(s, `code:${wallet}`, Date.now(), 5);
+          return refreshCode(s, wallet);
+        }),
+      );
+    if (path === "queue/cancel") {
+      transact((s) => cancelQueue(s, wallet));
+      return json({ ok: true });
     }
     if (/^proposals\/[a-f0-9-]+\/comments$/.test(path)) {
       const proposalId = path.split("/")[1];
