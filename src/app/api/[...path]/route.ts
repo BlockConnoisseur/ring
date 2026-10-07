@@ -1,0 +1,255 @@
+import { NextRequest, NextResponse } from "next/server";
+import { randomBytes, randomUUID } from "node:crypto";
+import bs58 from "bs58";
+import nacl from "tweetnacl";
+import { z } from "zod";
+import { readStore, transact } from "@/lib/store";
+import { enqueue, hash, rateLimit, targetFor } from "@/lib/game";
+import { holdsRing, requireHolding, validWallet } from "@/lib/solana";
+import { liveReady, origin, requireLive } from "@/lib/config";
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+const json = (body: unknown, status = 200) =>
+  NextResponse.json(body, { status, headers: { "Cache-Control": "no-store" } });
+function session(req: NextRequest) {
+  const token = req.cookies.get("ring_session")?.value;
+  const s = token ? readStore().sessions[hash(token)] : undefined;
+  return s && s.expiresAt > Date.now() ? s.wallet : null;
+}
+function requireSession(req: NextRequest) {
+  const wallet = session(req);
+  if (!wallet) throw new Error("Connect your wallet to continue.");
+  return wallet;
+}
+const proposalSchema = z.object({
+  kind: z.enum(["picture", "description", "fees"]),
+  title: z.string().trim().min(5).max(100),
+  username: z.string().regex(/^[A-Za-z0-9_]{3,24}$/),
+  value: z.string().max(500),
+  note: z.string().trim().max(500),
+  image: z.string().max(2_800_000).optional(),
+});
+function checkImage(image: string) {
+  const match = /^data:image\/(png|jpeg|webp);base64,([A-Za-z0-9+/=]+)$/.exec(
+    image,
+  );
+  if (!match) throw new Error("Use a PNG, JPEG, or WebP image.");
+  const bytes = Buffer.from(match[2], "base64");
+  if (bytes.length > 2 * 1024 * 1024)
+    throw new Error("Images must be under 2 MB.");
+  const format = match[1];
+  if (!(
+    (format === "png" &&
+      bytes
+        .subarray(0, 8)
+        .equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))) ||
+    (format === "jpeg" &&
+      bytes[0] === 255 &&
+      bytes[1] === 216 &&
+      bytes[2] === 255) ||
+    (format === "webp" &&
+      bytes.toString("ascii", 0, 4) === "RIFF" &&
+      bytes.toString("ascii", 8, 12) === "WEBP")
+  ))
+    throw new Error("The image file is invalid.");
+}
+export async function GET(
+  req: NextRequest,
+  { params }: { params: Promise<{ path: string[] }> },
+) {
+  try {
+    const path = (await params).path.join("/");
+    const s = transact((s) => s);
+    const wallet = session(req);
+    if (path === "state") {
+      const waiting = s.queue.filter(
+        (q) => q.status !== "done" && q.expiresAt > Date.now(),
+      );
+      const qi = waiting.findIndex((q) => q.wallet === wallet);
+      return json({
+        live: liveReady(),
+        required: targetFor(s.wins),
+        wins: s.wins,
+        phone: process.env.RING_PHONE_NUMBER || null,
+        mint: process.env.RING_TOKEN_MINT || null,
+        proposals: [...s.proposals].reverse().slice(0, 100),
+        session: wallet
+          ? {
+              wallet,
+              eligible: await holdsRing(wallet),
+              cooldownUntil: s.wallets[wallet]?.cooldownUntil || 0,
+            }
+          : null,
+        queue:
+          qi >= 0
+            ? { position: qi + 1, expiresAt: waiting[qi].expiresAt }
+            : null,
+      });
+    }
+    if (/^proposals\/[a-f0-9-]+$/.test(path)) {
+      const id = path.split("/")[1];
+      const p = s.proposals.find((p) => p.id === id);
+      if (!p) return json({ error: "Proposal not found." }, 404);
+      return json({
+        proposal: p,
+        comments: s.comments.filter((c) => c.proposalId === id),
+      });
+    }
+    return json({ error: "Not found." }, 404);
+  } catch (e) {
+    return json(
+      { error: e instanceof Error ? e.message : "Request failed." },
+      503,
+    );
+  }
+}
+export async function POST(
+  req: NextRequest,
+  { params }: { params: Promise<{ path: string[] }> },
+) {
+  try {
+    if (req.headers.get("origin") !== origin())
+      return json({ error: "This request must come from Ring." }, 403);
+    const path = (await params).path.join("/");
+    if (Number(req.headers.get("content-length") || 0) > 3_000_000)
+      return json({ error: "Request is too large." }, 413);
+    const raw = await req.text();
+    if (raw.length > 3_000_000)
+      return json({ error: "Request is too large." }, 413);
+    const body = JSON.parse(raw);
+    if (path === "auth/challenge") {
+      const { wallet } = z
+        .object({ wallet: z.string().max(44).refine(validWallet) })
+        .parse(body);
+      const id = randomUUID();
+      const message = `Sign in to Ring\nOrigin: ${origin()}\nWallet: ${wallet}\nNonce: ${id}\nIssued: ${new Date().toISOString()}\nThis does not authorize a transaction.`;
+      transact((s) => {
+        rateLimit(s, `challenge:${wallet}`);
+        for (const [k, v] of Object.entries(s.challenges))
+          if (v.expiresAt <= Date.now()) delete s.challenges[k];
+        s.challenges[id] = { wallet, message, expiresAt: Date.now() + 300_000 };
+      });
+      return json({ id, message });
+    }
+    if (path === "auth/verify") {
+      const { id, signature } = z
+        .object({ id: z.uuid(), signature: z.string().max(100) })
+        .parse(body);
+      const token = randomBytes(32).toString("hex");
+      transact((s) => {
+        const c = s.challenges[id];
+        if (!c || c.expiresAt <= Date.now())
+          throw new Error("Sign-in expired. Reconnect your wallet.");
+        if (
+          !nacl.sign.detached.verify(
+            new TextEncoder().encode(c.message),
+            bs58.decode(signature),
+            bs58.decode(c.wallet),
+          )
+        )
+          throw new Error("The wallet signature is invalid.");
+        delete s.challenges[id];
+        s.wallets[c.wallet] ??= { username: "", cooldownUntil: 0 };
+        s.sessions[hash(token)] = {
+          wallet: c.wallet,
+          expiresAt: Date.now() + 86400_000,
+        };
+        for (const [k, v] of Object.entries(s.sessions))
+          if (v.expiresAt <= Date.now()) delete s.sessions[k];
+      });
+      const res = json({ ok: true });
+      res.cookies.set("ring_session", token, {
+        httpOnly: true,
+        sameSite: "strict",
+        secure: origin().startsWith("https:"),
+        path: "/",
+        maxAge: 86400,
+      });
+      return res;
+    }
+    if (path === "auth/logout") {
+      const token = req.cookies.get("ring_session")?.value;
+      if (token)
+        transact((s) => {
+          delete s.sessions[hash(token)];
+        });
+      const res = json({ ok: true });
+      res.cookies.delete("ring_session");
+      return res;
+    }
+    const wallet = requireSession(req);
+    if (path === "proposals") {
+      requireLive();
+      await requireHolding(wallet);
+      const value = proposalSchema.parse(body);
+      if (value.kind === "fees")
+        throw new Error(
+          "Fee proposals open after the payout duration and execution policy are configured.",
+        );
+      if (value.kind === "picture") checkImage(value.image || "");
+      if (value.kind === "description" && value.value.trim().length < 5)
+        throw new Error("Write a description of at least five characters.");
+      const id = randomUUID();
+      transact((s) => {
+        rateLimit(s, `proposal:${wallet}`, Date.now(), 5, 3600_000);
+        if (
+          Object.entries(s.wallets).some(
+            ([key, w]) =>
+              key !== wallet &&
+              w.username.toLowerCase() === value.username.toLowerCase(),
+          )
+        )
+          throw new Error("That forum name is already taken.");
+        s.wallets[wallet].username = value.username;
+        s.proposals.push({
+          ...value,
+          id,
+          wallet,
+          status: "open",
+          createdAt: Date.now(),
+          comments: 0,
+        });
+      });
+      return json({ id }, 201);
+    }
+    if (path === "queue") {
+      requireLive();
+      await requireHolding(wallet);
+      const { proposalId } = z.object({ proposalId: z.uuid() }).parse(body);
+      return json(transact((s) => enqueue(s, wallet, proposalId)));
+    }
+    if (/^proposals\/[a-f0-9-]+\/comments$/.test(path)) {
+      const proposalId = path.split("/")[1];
+      const { text } = z
+        .object({ text: z.string().trim().min(1).max(500) })
+        .parse(body);
+      transact((s) => {
+        rateLimit(s, `comments:${wallet}`, Date.now(), 5);
+        const p = s.proposals.find((p) => p.id === proposalId);
+        if (!p) throw new Error("Proposal not found.");
+        s.comments.push({
+          id: randomUUID(),
+          wallet,
+          proposalId,
+          text,
+          createdAt: Date.now(),
+        });
+        p.comments++;
+      });
+      return json({ ok: true }, 201);
+    }
+    return json({ error: "Not found." }, 404);
+  } catch (e) {
+    return json(
+      {
+        error:
+          e instanceof z.ZodError
+            ? "Check the form fields and try again."
+            : e instanceof Error
+              ? e.message
+              : "Request failed.",
+      },
+      400,
+    );
+  }
+}

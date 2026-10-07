@@ -1,0 +1,39 @@
+{
+  "name": "ring",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev": "next dev --hostname 127.0.0.1 --port 3320",
+    "build": "next build",
+    "start": "next start --port 3320",
+    "typecheck": "next typegen && tsc --noEmit",
+    "test": "tsx --test tests/*.test.ts",
+    "voice": "node --env-file-if-exists=.env.local --import tsx scripts/voice-server.ts",
+    "execute": "node --env-file-if-exists=.env.local --import tsx scripts/execution-worker.ts"
+  },
+  "dependencies": {
+    "@fontsource-variable/dm-sans": "^5.2.0",
+    "@fontsource/space-mono": "^5.2.0",
+    "bs58": "^6.0.0",
+    "next": "16.4.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "tweetnacl": "^1.0.3",
+    "twilio": "^5.10.0",
+    "ws": "^8.18.0",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.55.0",
+    "@types/node": "^24",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@types/ws": "^8.18.0",
+    "prettier": "^3.9.9",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.0"
+  }
+}
