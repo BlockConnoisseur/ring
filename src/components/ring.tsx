@@ -92,6 +92,16 @@ function Arrow({ diagonal = false }: { diagonal?: boolean }) {
     </svg>
   );
 }
+function BrandLogo() {
+  return (
+    <span className="brand-lockup" aria-hidden="true">
+      <Image src="/ring-mark.svg" alt="" width={44} height={44} />
+      <span className="brand-lettering">
+        R<span>I</span>NG
+      </span>
+    </span>
+  );
+}
 function PhoneIcon() {
   return (
     <svg
@@ -415,22 +425,33 @@ export default function Ring() {
       <a className="skip-link" href="#main">
         Skip to content
       </a>
-      <header className="site-header wrap">
-        <a className="wordmark" href="#" aria-label="Ring home">
-          ring<span className="brand-dot">.</span>
-        </a>
-        <nav aria-label="Main navigation">
-          <a href="#switchboard">The switchboard</a>
-          <a href="#rules">The rules</a>
-        </nav>
-        <button className="wallet-button" onClick={() => open("wallet")}>
-          <span className="wallet-symbol" aria-hidden="true">
-            ◈
-          </span>
-          {state.session ? short(state.session.wallet) : "Connect wallet"}
-          <Arrow diagonal />
-        </button>
-      </header>
+      <div className="brand-band">
+        <header className="site-header wrap">
+          <a className="wordmark" href="#" aria-label="Ring home">
+            <BrandLogo />
+          </a>
+          <nav aria-label="Main navigation">
+            <a href="#switchboard">The switchboard</a>
+            <a href="#rules">The rules</a>
+          </nav>
+          <button className="wallet-button" onClick={() => open("wallet")}>
+            <svg
+              className="wallet-symbol"
+              aria-hidden="true"
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.6"
+            >
+              <path d="M4 6h15v14H4V6Zm0 0V4h12v2M15 11h6v5h-6z" />
+            </svg>
+            {state.session ? short(state.session.wallet) : "Connect wallet"}
+            <Arrow diagonal />
+          </button>
+        </header>
+      </div>
       <main id="main">
         <section className="hero wrap" aria-labelledby="hero-title">
           <div className="hero-copy">
@@ -804,16 +825,18 @@ export default function Ring() {
           </button>
         </section>
       </main>
-      <footer className="site-footer wrap">
-        <a className="wordmark" href="#">
-          ring<span className="brand-dot">.</span>
-        </a>
-        <p>The coin is on the line.</p>
-        <span>Solana / Meteora</span>
-        <a href="#rules">
-          Rules <Arrow diagonal />
-        </a>
-      </footer>
+      <div className="brand-band">
+        <footer className="site-footer wrap">
+          <a className="wordmark" href="#" aria-label="Ring home">
+            <BrandLogo />
+          </a>
+          <p>Pick up the future.</p>
+          <span>Solana / Meteora</span>
+          <a href="#rules">
+            Rules <Arrow diagonal />
+          </a>
+        </footer>
+      </div>
       {notice && (
         <div className="toast" role="status">
           {notice}

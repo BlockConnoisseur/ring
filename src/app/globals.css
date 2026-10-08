@@ -1,12 +1,14 @@
 :root {
-  --canvas: #faf9f6;
+  --canvas: #fff;
   --surface: #fff;
-  --ink: #171715;
-  --muted: #62625d;
-  --line: #d8d7d1;
-  --brand: #e72c21;
-  --brand-dark: #c91f15;
-  --focus: #a81c13;
+  --ink: #161616;
+  --black: #0a0a0a;
+  --muted: #626262;
+  --line: #d8d8d8;
+  --brand: #e10600;
+  --signal: #ff3b30;
+  --brand-dark: #8f0a06;
+  --focus: #8f0a06;
   --font-body: "DM Sans Variable", Arial, sans-serif;
   --font-mono: "Space Mono", monospace;
   --space: 8px;
@@ -27,6 +29,7 @@ body {
   font-family: var(--font-body);
   font-size: 16px;
   -webkit-font-smoothing: antialiased;
+  scrollbar-color: var(--muted) var(--canvas);
 }
 button,
 input,
@@ -42,6 +45,15 @@ textarea {
 }
 button {
   cursor: pointer;
+}
+input,
+textarea {
+  caret-color: var(--brand);
+}
+input::placeholder,
+textarea::placeholder {
+  color: var(--muted);
+  opacity: 1;
 }
 button:disabled {
   cursor: not-allowed;
@@ -61,6 +73,7 @@ button {
 button:focus-visible,
 a:focus-visible,
 input:focus-visible,
+select:focus-visible,
 textarea:focus-visible {
   outline: 3px solid var(--focus);
   outline-offset: 5px;
@@ -92,14 +105,34 @@ button {
   height: 106px;
   display: flex;
   align-items: center;
-  border-bottom: 1px solid var(--line);
   gap: 56px;
 }
+.brand-band {
+  background: var(--black);
+  color: #fff;
+  --focus: var(--signal);
+}
 .wordmark {
-  font-size: 49px;
-  font-weight: 850;
-  letter-spacing: -4px;
+  display: inline-flex;
+  flex-shrink: 0;
   line-height: 1;
+}
+.brand-lockup {
+  display: inline-flex;
+  align-items: center;
+  gap: 13px;
+}
+.brand-lockup img {
+  width: 44px;
+  height: 44px;
+}
+.brand-lettering {
+  font-size: 30px;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+}
+.brand-lettering > span {
+  color: var(--brand);
 }
 .brand-dot {
   color: var(--brand);
@@ -116,24 +149,24 @@ button {
   border-bottom: 1px solid transparent;
 }
 .site-header nav a:hover {
-  border-color: var(--ink);
+  border-color: var(--signal);
 }
 .wallet-button {
   display: flex;
   align-items: center;
   gap: 16px;
   background: transparent;
-  border: 1px solid var(--ink);
+  border: 1px solid #767676;
   padding: 13px 17px;
   font-size: 13px;
   font-weight: 650;
 }
 .wallet-button:hover {
-  background: var(--ink);
-  color: var(--canvas);
+  background: #fff;
+  color: var(--black);
 }
 .wallet-symbol {
-  font-size: 18px;
+  flex-shrink: 0;
 }
 .hero {
   display: grid;
@@ -473,7 +506,7 @@ h1 span {
   gap: 8px;
   align-items: center;
   font: 9px var(--font-mono);
-  color: #bab9b2;
+  color: #bcbcbc;
 }
 .call-slip h3 {
   font-size: 44px;
@@ -486,10 +519,10 @@ h1 span {
 .call-slip > p {
   font-size: 12px;
   line-height: 1.7;
-  color: #bab9b2;
+  color: #bcbcbc;
 }
 .slip-divider {
-  border-bottom: 1px dashed #54544f;
+  border-bottom: 1px dashed #545454;
   margin: 28px 0 21px;
 }
 .call-slip dl {
@@ -503,7 +536,7 @@ h1 span {
   margin: 14px 0;
 }
 .call-slip dt {
-  color: #bab9b2;
+  color: #bcbcbc;
 }
 .call-slip dd {
   margin: 0;
@@ -529,7 +562,7 @@ h1 span {
   font: 8px var(--font-mono);
   display: block;
   text-align: center;
-  color: #b8b7b0;
+  color: #bcbcbc;
   margin-top: 16px;
 }
 .rules-section {
@@ -543,7 +576,7 @@ h1 span {
   gap: 80px;
 }
 .rules-section .eyebrow {
-  color: #c7c6bf;
+  color: #c7c7c7;
   margin-bottom: 29px;
 }
 .rules-section h2 {
@@ -554,11 +587,11 @@ h1 span {
   margin: 0 0 24px;
 }
 .rules-section h2 span {
-  color: #ff4338;
+  color: var(--signal);
 }
 .rules-section p {
   font-size: 14px;
-  color: #bcbcb5;
+  color: #bcbcbc;
   line-height: 1.7;
 }
 .progression {
@@ -574,17 +607,17 @@ h1 span {
 }
 .progression > span {
   font-size: 21px;
-  color: #ff4338;
+  color: var(--signal);
 }
 .progression-caption {
   font: 9px var(--font-mono);
-  color: #bcbcb5;
+  color: #bcbcbc;
 }
 .rule-item {
   display: flex;
   gap: 25px;
   padding: 23px 0;
-  border-top: 1px solid #454540;
+  border-top: 1px solid #454545;
 }
 .rule-item:first-child {
   padding-top: 0;
@@ -592,7 +625,7 @@ h1 span {
 }
 .rule-item > span {
   font: 10px var(--font-mono);
-  color: #ff4338;
+  color: var(--signal);
   line-height: 28px;
 }
 .rule-item h3 {
@@ -643,17 +676,14 @@ h1 span {
   align-items: center;
   min-height: 125px;
 }
-.site-footer .wordmark {
-  font-size: 42px;
-}
 .site-footer p {
-  font-size: 11px;
-  color: var(--muted);
+  font-size: 14px;
+  color: #fff;
 }
 .site-footer > span {
-  font: 9px var(--font-mono);
+  font: 11px var(--font-mono);
   margin-left: auto;
-  color: var(--muted);
+  color: #bcbcbc;
 }
 .site-footer > a:last-child {
   display: flex;
@@ -717,7 +747,7 @@ h1 span {
   align-items: center;
 }
 .draft-row {
-  background: #eeede8;
+  background: #f2f2f2;
   width: 100%;
   display: flex;
   justify-content: space-between;
@@ -867,7 +897,7 @@ textarea {
   width: 100%;
   padding: 13px 14px;
   background: var(--surface);
-  border: 1px solid #c6c5bf;
+  border: 1px solid #c7c7c7;
   border-radius: 0;
   font-size: 13px;
   line-height: 1.5;
@@ -879,7 +909,7 @@ textarea {
 }
 .input-prefix {
   display: flex;
-  border: 1px solid #c6c5bf;
+  border: 1px solid #c7c7c7;
   background: var(--surface);
   align-items: center;
   padding-left: 15px;
@@ -910,7 +940,7 @@ textarea {
   color: white;
 }
 .upload-area {
-  border: 1px dashed #aaa99f;
+  border: 1px dashed #aaa;
   display: flex;
   align-items: center;
   padding: 24px;
@@ -976,9 +1006,9 @@ textarea {
 }
 .panel .form-error {
   padding: 13px 15px;
-  background: #fbe6e2;
+  background: #fff1f0;
   border-left: 2px solid var(--brand);
-  color: #961a13;
+  color: var(--brand-dark);
   font-size: 12px;
   overflow-wrap: anywhere;
 }
@@ -1036,7 +1066,7 @@ textarea {
 }
 .proposal-value {
   padding: 20px;
-  background: #eeede8;
+  background: #f2f2f2;
   font-size: 13px;
   line-height: 1.7;
   overflow-wrap: anywhere;
@@ -1125,7 +1155,17 @@ textarea {
     gap: 22px;
   }
   .wordmark {
-    font-size: 42px;
+    flex-shrink: 0;
+  }
+  .brand-lockup {
+    gap: 9px;
+  }
+  .brand-lockup img {
+    width: 34px;
+    height: 34px;
+  }
+  .brand-lettering {
+    font-size: 24px;
   }
   .site-header nav {
     gap: 20px;
@@ -1427,9 +1467,6 @@ textarea {
   .site-footer {
     gap: 15px;
     min-height: 105px;
-  }
-  .site-footer .wordmark {
-    font-size: 36px;
   }
   .site-footer > a:last-child {
     font-size: 10px;
