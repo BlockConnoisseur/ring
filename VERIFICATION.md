@@ -1,4 +1,12 @@
-# Verification — 2026-10-07
+# Verification — 2026-10-08
+
+## Concurrent-call update
+
+The current build allows up to 100 simultaneous games, with a target locked at admission. Verification: 42 application tests passed, eight real local PostgreSQL integration tests passed, TypeScript passed, and the production build passed. A separate load run completed 100 simultaneous authenticated HTTP/WebSocket calls, each with three eight-second answer windows, unique questions, one win and one execution. The 100-call run took about 28 seconds, with admissions in 553ms. Its speech and Solana responses are simulated. The PostgreSQL test performed 100 admissions, 300 answers and 100 duplicate answer replays in 3.25 seconds without lost updates. These are local measurements, not cloud or carrier capacity certification. See [CAPACITY.md](CAPACITY.md).
+
+Provider setup: the supplied Twilio credentials authenticated successfully, the configured number is owned and voice-capable, and the account reports Full/active. A dedicated Deepgram key was created and saved only in the ignored environment; live authentication, Aura-2 synthesis and Nova-3 transcription returned HTTP 200. Turnkey wallet creation is waiting for the user's device authentication. No live Turnkey signing, public voice deployment, handset call, token transaction or 60-person live provider load test has completed. Ring remains in prelaunch. The earlier $7/month hosting proposal has not been validated for this concurrency requirement.
+
+## Earlier verification
 
 The functional implementation was tested with isolated temporary SQLite databases and a separate PostgreSQL 17 cluster. The user-selected Supabase project was subsequently provisioned and verified with a restricted app login. No funds were moved.
 
@@ -13,7 +21,7 @@ Turnkey: four additional signer tests exercise the official Solana SDK serialize
 ## Automated coverage
 
 - Signed wallet login rejects forgery, replay and cross-origin mutation. A wallet holding one raw token unit can publish each proposal type, comment, queue, replace its private code and cancel; zero balances cannot publish.
-- Game progression enforces 3, 5, 7… consecutive answers, eight-second deadlines, global retirement, ten-minute cooldowns and one active caller.
+- Game progression enforces 3, 5, 7… targets locked at admission, eight-second deadlines, global retirement, ten-minute cooldowns, bounded concurrent games and one active game per wallet.
 - The phone integration test starts the real voice server as a child process, sends signed Twilio HTTP callbacks, opens a signed WebSocket, plays three eight-second windows, uses both DTMF and simulated speech, and verifies one win and one execution record. An earlier spoken correct answer beats a later wrong keypad input. Duplicate completion callbacks do not duplicate the win. Twilio and Deepgram responses are test fixtures, not live provider calls.
 - Audio tests cover clipping, duplicated frames and coverage checks.
 - Transaction journal tests cover a crash/timeout after broadcast, recovery with identical bytes, changed-intent rejection, finality, expiry, and a still-processed signature that must not be replaced.
@@ -27,6 +35,6 @@ The installed Meteora stack uses web3.js/Anchor. Dependency overrides update Jay
 
 The previous turn's desktop/mobile design screenshots remain in `docs/`. This turn's browser check was blocked by the browser tool's URL security policy; the new result/code-recovery UI was not visually rechecked.
 
-No public mint, real phone credentials, authority signer, or HTTPS deployment was supplied. Consequently there has been no real handset call or devnet/mainnet metadata/fee transaction. The tests exercise protocol handling and SDK instruction construction, not actual deployed pool permissions, provider audio latency, token UI cache refresh, or real fund delivery. Docker/Caddy deployment files are supplied but the stack has not been deployed here.
+No public mint, completed authority signer, or HTTPS deployment is configured. Consequently there has been no real handset call or devnet/mainnet metadata/fee transaction. The tests exercise protocol handling and SDK instruction construction, not actual deployed pool permissions, carrier latency, token UI cache refresh, or real fund delivery. Docker/Caddy deployment files are supplied but the stack has not been deployed here.
 
 Run `npm run doctor` with the real environment, verify its authority/pool/phone checks, and perform a live acceptance call on the chosen token setup before opening the line publicly.

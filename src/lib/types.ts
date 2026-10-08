@@ -25,6 +25,7 @@ export type PublicState = {
     execution: string | null;
   } | null;
   required: number;
+  calls?: { active: number; capacity: number };
   wins: number;
   phone: string | null;
   mint: string | null;

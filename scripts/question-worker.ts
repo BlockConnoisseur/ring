@@ -1,5 +1,6 @@
 import { readStore, transact } from "../src/lib/store";
 import { targetFor } from "../src/lib/game";
+import { callCapacity } from "../src/lib/capacity";
 import { acquireLease } from "../src/lib/operations";
 import {
   fetchQuestionBatch,
@@ -15,7 +16,7 @@ async function tick() {
     const state = await readStore();
     if (
       state.questions.filter((q) => !q.used).length >=
-      Math.max(100, targetFor(state.wins) * 10)
+      Math.max(100, targetFor(state.wins) * callCapacity() * 2)
     )
       return;
     if (Date.now() - (state.questionFeed?.lastSync || 0) < 300_000) return;

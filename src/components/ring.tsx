@@ -1117,13 +1117,15 @@ export default function Ring() {
                     Lock your proposal
                     <strong>
                       {state.queue
-                        ? `Queue position: ${state.queue.position}`
+                        ? state.lastGame?.status === "playing"
+                          ? "Your call is in progress"
+                          : "Your private code is ready"
                         : "Pick the change you’re playing for"}
                     </strong>
                   </p>
                 </div>
               </div>
-              {state.queue?.code && state.queue.position === 1 && (
+              {state.queue?.code && (
                 <div className="call-code">
                   <span>YOUR PRIVATE CALL CODE</span>
                   <strong>{state.queue.code}</strong>
@@ -1180,7 +1182,7 @@ export default function Ring() {
                   {error}
                 </p>
               )}
-              {state.live && state.phone && state.queue?.position === 1 ? (
+              {state.live && state.phone && state.queue ? (
                 <a className="primary-button" href={`tel:${state.phone}`}>
                   <PhoneIcon />
                   Call {state.phone}
@@ -1195,8 +1197,13 @@ export default function Ring() {
                 </button>
               )}
               <p className="small-copy">
-                {state.required} right in a row. Eight seconds per answer. A
-                fresh set of questions for every attempt.
+                {state.lastGame?.status === "playing"
+                  ? state.lastGame.target
+                  : state.required}{" "}
+                right in a row. Eight seconds per answer. Your target locks when
+                your call starts.
+                {state.calls &&
+                  ` ${state.calls.active} of ${state.calls.capacity} call slots in use.`}
               </p>
             </>
           )}

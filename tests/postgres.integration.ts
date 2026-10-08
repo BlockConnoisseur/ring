@@ -10,7 +10,14 @@ import { readStore, transact } from "../src/lib/store";
 import { closeDatabase, pg, usesPostgres } from "../src/lib/database";
 import { acquireLease, runOperation, operation } from "../src/lib/operations";
 import { publishAsset, getAsset } from "../src/lib/assets";
-import { enqueue, beginGame, finish, emptyStore } from "../src/lib/game";
+import {
+  enqueue,
+  beginGame,
+  finish,
+  emptyStore,
+  openQuestion,
+  answer,
+} from "../src/lib/game";
 import { migrateSqlite } from "../src/lib/migrate-sqlite";
 
 // Deliberately separate from npm test; never run destructive setup on a cloud URL.
@@ -123,18 +130,16 @@ test("SQLite cutover preserves retired facts and signed bytes and refuses an occ
   local
     .prepare("insert into ring_state values(1,?)")
     .run(JSON.stringify(state));
-  local
-    .prepare("insert into operations values(?,?,?)")
-    .run(
-      "cutover",
-      "intent",
-      JSON.stringify({
-        raw: "signed",
-        signature: "sig",
-        status: "signed",
-        lastValidBlockHeight: 20,
-      }),
-    );
+  local.prepare("insert into operations values(?,?,?)").run(
+    "cutover",
+    "intent",
+    JSON.stringify({
+      raw: "signed",
+      signature: "sig",
+      status: "signed",
+      lastValidBlockHeight: 20,
+    }),
+  );
   local
     .prepare("insert into assets values(?,?,?)")
     .run("a".repeat(64), "image/png", Buffer.from("bytes"));
@@ -160,7 +165,7 @@ test("SQLite cutover preserves retired facts and signed bytes and refuses an occ
   await admin`delete from ring.assets`;
 });
 
-test("racing callbacks reserve questions once and another caller cannot overlap", async () => {
+test("racing callbacks reserve questions once while another caller plays", async () => {
   const codes = await transact((s) => {
     s.wins = 0;
     s.questions = Array.from({ length: 12 }, (_, i) => ({
@@ -196,14 +201,84 @@ test("racing callbacks reserve questions once and another caller cannot overlap"
   );
   assert.equal(new Set(games.map((g) => g.id)).size, 1);
   assert.equal((await readStore()).questions.filter((q) => q.used).length, 3);
-  await assert.rejects(transact((s) => beginGame(s, codes[1], "second-call")));
-  await transact((s) => finish(s, s.games[0], "lost"));
   const second = await transact((s) => beginGame(s, codes[1], "second-call"));
   assert.equal(
     second.questions.some((q) =>
       games[0].questions.some((first) => first.id === q.id),
     ),
     false,
+  );
+  await transact((s) => s.games.forEach((g) => finish(s, g, "lost")));
+});
+
+test("100 concurrent Postgres admissions and wins stay isolated and replay safe", async (t) => {
+  const started = performance.now();
+  const codes = await transact((s) => {
+    Object.assign(s, emptyStore());
+    s.questions = Array.from({ length: 350 }, (_, i) => ({
+      id: `load-q-${i}`,
+      fact: `load-f-${i}`,
+      text: `Question ${i}`,
+      choices: ["A", "B", "C", "D"],
+      correct: i % 4,
+      source: "test",
+      used: false,
+    }));
+    return Array.from({ length: 100 }, (_, i) => {
+      const wallet = `load-wallet-${i}`;
+      s.wallets[wallet] = { username: wallet, cooldownUntil: 0 };
+      s.proposals.push({
+        id: wallet,
+        wallet,
+        username: wallet,
+        title: "Change description",
+        kind: "description",
+        value: "Ring",
+        note: "",
+        status: "open",
+        comments: 0,
+        createdAt: Date.now(),
+      });
+      return enqueue(s, wallet, wallet).code;
+    });
+  });
+  const games = await Promise.all(
+    codes.map((code, i) =>
+      transact((s) => beginGame(s, code, `load-call-${i}`)),
+    ),
+  );
+  assert.equal(
+    new Set(games.flatMap((g) => g.questions.map((q) => q.id))).size,
+    300,
+  );
+  assert.equal(
+    games.every((g) => g.target === 3),
+    true,
+  );
+  for (let index = 0; index < 3; index++) {
+    await Promise.all(
+      games.map((g) =>
+        transact((s) => {
+          const now = Date.now();
+          openQuestion(s, g.id, now);
+          return answer(s, g.id, g.questions[index].correct, now + 1);
+        }),
+      ),
+    );
+  }
+  await Promise.all(games.map((g) => transact((s) => answer(s, g.id, 0))));
+  const state = await readStore();
+  assert.equal(state.wins, 100);
+  assert.equal(state.executions.length, 100);
+  assert.equal(new Set(state.executions.map((e) => e.gameId)).size, 100);
+  assert.ok(
+    state.games.every((g) => g.status === "won" && g.answers.length === 3),
+  );
+  assert.ok(
+    Object.values(state.wallets).every((w) => w.cooldownUntil > Date.now()),
+  );
+  t.diagnostic(
+    `100 admissions + 300 answers + 100 replays: ${Math.round(performance.now() - started)}ms on disposable local Postgres.`,
   );
 });
 

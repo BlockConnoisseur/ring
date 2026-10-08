@@ -16,12 +16,24 @@ import {
   rateLimit,
   startQuestionPlayback,
   timeout,
+  targetFor,
   type Game,
 } from "../src/lib/game";
 import { requireHolding } from "../src/lib/solana";
 import { liveReady } from "../src/lib/config";
 import { AudioWindow } from "../src/lib/audio-window";
 import { acquireLease } from "../src/lib/operations";
+import { callCapacity, positiveLimit, RequestGate } from "../src/lib/capacity";
+
+// Leave headroom beneath Deepgram's project-wide REST limits (15 TTS / 50 STT).
+const speechGate = new RequestGate(
+  positiveLimit("DEEPGRAM_TTS_CONCURRENCY", 12),
+  callCapacity(),
+);
+const recognitionGate = new RequestGate(
+  positiveLimit("DEEPGRAM_STT_CONCURRENCY", 40),
+  callCapacity(),
+);
 
 const base = (process.env.VOICE_PUBLIC_URL || "").replace(/\/$/, "");
 const auth = process.env.TWILIO_AUTH_TOKEN || "";
@@ -189,20 +201,22 @@ server.on("upgrade", (req, socket, head) => {
 });
 
 async function speech(text: string) {
-  const res = await fetch(
-    "https://api.deepgram.com/v1/speak?model=aura-2-thalia-en&encoding=mulaw&sample_rate=8000&container=none",
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Token ${voiceKey}`,
-        "Content-Type": "application/json",
+  return speechGate.run(async () => {
+    const res = await fetch(
+      "https://api.deepgram.com/v1/speak?model=aura-2-thalia-en&encoding=mulaw&sample_rate=8000&container=none",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Token ${voiceKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ text }),
+        signal: AbortSignal.timeout(15000),
       },
-      body: JSON.stringify({ text }),
-      signal: AbortSignal.timeout(15000),
-    },
-  );
-  if (!res.ok) throw new Error("Voice synthesis unavailable");
-  return Buffer.from(await res.arrayBuffer());
+    );
+    if (!res.ok) throw new Error("Voice synthesis unavailable");
+    return Buffer.from(await res.arrayBuffer());
+  });
 }
 // 160ms of a quiet 880Hz telephone beep, encoded as G.711 mu-law.
 function beep() {
@@ -224,22 +238,24 @@ function beep() {
 }
 type Word = { word: string; start: number; end: number; confidence: number };
 async function recognize(audio: Buffer) {
-  const res = await fetch(
-    "https://api.deepgram.com/v1/listen?model=nova-3&encoding=mulaw&sample_rate=8000&channels=1&punctuate=false",
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Token ${voiceKey}`,
-        "Content-Type": "application/octet-stream",
+  return recognitionGate.run(async () => {
+    const res = await fetch(
+      "https://api.deepgram.com/v1/listen?model=nova-3&encoding=mulaw&sample_rate=8000&channels=1&punctuate=false",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Token ${voiceKey}`,
+          "Content-Type": "application/octet-stream",
+        },
+        body: new Uint8Array(audio),
+        signal: AbortSignal.timeout(15000),
       },
-      body: new Uint8Array(audio),
-      signal: AbortSignal.timeout(15000),
-    },
-  );
-  if (!res.ok) throw new Error("Speech recognition unavailable");
-  const result = await res.json();
-  return (result.results?.channels?.[0]?.alternatives?.[0]?.words ||
-    []) as Word[];
+    );
+    if (!res.ok) throw new Error("Speech recognition unavailable");
+    const result = await res.json();
+    return (result.results?.channels?.[0]?.alternatives?.[0]?.words ||
+      []) as Word[];
+  });
 }
 sockets.on("connection", (ws) => {
   let gameId = "",
@@ -357,8 +373,9 @@ sockets.on("connection", (ws) => {
       capture.clear();
       if (result.status === "won") {
         ending = true;
+        const nextTarget = targetFor((await readStore()).wins);
         await say(
-          `That's ${result.target} in a row. You won. Your locked proposal is queued for execution. The next caller needs ${result.target + 2}. Check the website for confirmation.`,
+          `That's ${result.target} in a row. You won. Your locked proposal is queued for execution. The target for new calls is now ${nextTarget}. Check the website for confirmation.`,
           "end",
         );
       } else if (result.status === "lost") {
@@ -402,6 +419,9 @@ sockets.on("connection", (ws) => {
         }
         gameId = g.id;
         streamSid = event.start.streamSid;
+        // The authenticated call may wait in the provider queue before its first
+        // question. Only an unauthenticated/unstated socket gets the 15s deadline.
+        clearTimer();
         if (closed) {
           await transact((s) => {
             const interrupted = getGame(s, gameId);

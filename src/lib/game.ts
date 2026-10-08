@@ -1,6 +1,7 @@
 import { randomInt, randomUUID, createHash } from "node:crypto";
 import type { Proposal } from "./types";
 import type { FeeSource } from "./meteora";
+import { callCapacity } from "./capacity";
 export const COOLDOWN_MS = 600_000;
 export const ANSWER_MS = 8_000;
 export const targetFor = (wins: number) => 3 + wins * 2;
@@ -133,6 +134,8 @@ export function enqueue(
 ) {
   if ((s.wallets[wallet]?.cooldownUntil || 0) > now)
     throw new Error("Your ten-minute cooldown is still running.");
+  if (s.games.some((g) => g.wallet === wallet && g.status === "playing"))
+    throw new Error("This wallet already has an active call.");
   const p = s.proposals.find((p) => p.id === proposalId && p.wallet === wallet);
   if (!p || p.status !== "open")
     throw new Error("Choose one of your open proposals.");
@@ -146,9 +149,7 @@ export function enqueue(
   if (
     s.queue.some(
       (q) =>
-        q.codeHash === hash(code) &&
-        q.status === "waiting" &&
-        q.expiresAt > now,
+        q.codeHash === hash(code) && q.status !== "done" && q.expiresAt > now,
     )
   )
     return enqueue(s, wallet, proposalId, now);
@@ -178,14 +179,16 @@ export function beginGame(
   const existing = s.games.find((g) => g.callSid === callSid);
   if (existing) return existing;
   const first = s.queue.find(
-    (q) => q.status === "waiting" && q.expiresAt > now,
+    (q) =>
+      q.status === "waiting" && q.expiresAt > now && q.codeHash === hash(code),
   );
-  if (!first || first.codeHash !== hash(code))
+  if (!first) throw new Error("The code is invalid or expired.");
+  if (s.games.filter((g) => g.status === "playing").length >= callCapacity())
     throw new Error(
-      "The code is invalid, expired, or it is not your turn yet.",
+      "All call slots are busy. Your code is still valid; try again shortly. No attempt was used.",
     );
-  if (s.games.some((g) => g.status === "playing"))
-    throw new Error("Another caller is playing. Please try again shortly.");
+  if (s.games.some((g) => g.wallet === first.wallet && g.status === "playing"))
+    throw new Error("This wallet already has an active call.");
   if ((s.wallets[first.wallet]?.cooldownUntil || 0) > now)
     throw new Error("Your cooldown is still running.");
   const target = targetFor(s.wins);

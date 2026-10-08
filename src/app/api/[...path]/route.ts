@@ -12,10 +12,12 @@ import {
   refreshCode,
   cancelQueue,
   bindMint,
+  expireQueue,
 } from "@/lib/game";
 import { holdsRing, requireHolding, validWallet } from "@/lib/solana";
 import { acceptingCalls, canPost, origin, requireLive } from "@/lib/config";
 import { getAsset, publishImage } from "@/lib/assets";
+import { callCapacity } from "@/lib/capacity";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 const json = (body: unknown, status = 200) =>
@@ -80,7 +82,9 @@ export async function GET(
         },
       });
     }
-    const s = await transact((s) => s);
+    const s = await readStore();
+    // Reflect expired reservations without rewriting the shared state on each poll.
+    expireQueue(s);
     const wallet = await session(req);
     if (path === "state") {
       const waiting = s.queue.filter(
@@ -108,6 +112,10 @@ export async function GET(
             }
           : null,
         required: targetFor(s.wins),
+        calls: {
+          active: s.games.filter((g) => g.status === "playing").length,
+          capacity: callCapacity(),
+        },
         wins: s.wins,
         phone: process.env.RING_PHONE_NUMBER || null,
         mint: process.env.RING_TOKEN_MINT || null,

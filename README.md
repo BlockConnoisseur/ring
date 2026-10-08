@@ -18,7 +18,7 @@ Open http://127.0.0.1:3320. The design, proposal composer, local drafts and wall
 - Phantom/Solflare signed wallet login, single-use challenges and HttpOnly sessions.
 - On-chain holding checks before publishing, queueing, playing and signing a winning change.
 - Persistent proposal board and comments; picture, description and fee-wallet proposals; immutable submitted payloads.
-- Private six-digit call codes tied to the wallet/proposal, queue order, code replacement and cancellation.
+- Private six-digit call codes tied to the wallet/proposal, code replacement and cancellation. Callers can dial concurrently; there is no first-in-line gate.
 - Twilio webhook signature verification and authenticated bidirectional Media Streams; Deepgram voice synthesis and transcription.
 - Eight seconds of answer audio after the playback mark, A/B/C/D or keypad 1–4, first valid answer wins. Transcription latency never extends the window.
 - Global question retirement and randomized option order; sourced question imports and an automatic refill worker. No stock means no new attempt.
@@ -56,7 +56,7 @@ npm run execute
 npm run questions:worker
 ```
 
-Set `RING_LIVE=true` after configuration. The website still closes the queue if workers are unavailable or questions run out. Test a real call before opening publicly. A database lease gives one voice worker ownership of the line; only one contestant plays at a time. Supabase allows the website and persistent workers to run on separate hosts. SQLite requires one host with shared disk. The voice worker always needs a persistent HTTPS/WebSocket host.
+Set `RING_LIVE=true` after configuration. The website still closes the queue if workers are unavailable or questions run out. Test a real call before opening publicly. A database lease gives one voice process ownership of recovery; that process multiplexes up to `RING_MAX_ACTIVE_CALLS` independent contestants (default 100). Supabase allows the website and persistent workers to run on separate hosts. SQLite requires one host with shared disk. The voice worker always needs a persistent HTTPS/WebSocket host. See [CAPACITY.md](CAPACITY.md) for provider limits and load verification.
 
 Alternatively, the included Docker Compose stack runs the four processes and Caddy TLS proxy. Set `APP_DOMAIN` and `VOICE_DOMAIN` to DNS names pointing to the host, `APP_ORIGIN` and `RING_ASSET_ORIGIN` to the website HTTPS origin, and `VOICE_PUBLIC_URL` to the voice HTTPS origin. Configure Turnkey as described above, then run `docker compose up --build -d`; no Solana private-key file is required. The optional `compose.keypair.yaml` adds a development-only local signer mount. With SQLite, back up the `ring-data` volume, including its live WAL or a consistent SQLite backup. With Supabase, configure database backups on the chosen plan. The database contains questions already used, sessions, proposals, assets, payout policy and transaction receipts; do not reset it on deployments. The default Compose stack passes the Turnkey API private key only to the executor.
 

@@ -138,13 +138,54 @@ test("insufficient unused questions does not start an attempt", () => {
   assert.equal(s.games.length, 0);
   assert.equal(s.wallets.alice.cooldownUntil, 0);
 });
-test("only the first queued wallet plays; second call cannot overlap", () => {
+test("callers can start out of queue order and play independently", () => {
   const s = fixture();
   const a = enqueue(s, "alice", "alice", 1000);
   const b = enqueue(s, "bob", "bob", 1001);
-  assert.throws(() => beginGame(s, b.code, "b", 1100), /turn/);
-  beginGame(s, a.code, "a", 1200);
-  assert.throws(() => beginGame(s, b.code, "b", 1300), /Another caller/);
+  const gb = beginGame(s, b.code, "b", 1100);
+  const ga = beginGame(s, a.code, "a", 1200);
+  assert.equal(s.games.filter((g) => g.status === "playing").length, 2);
+  assert.equal(
+    ga.questions.some((q) => gb.questions.some((other) => other.id === q.id)),
+    false,
+  );
+  for (let i = 0; i < ga.target; i++) {
+    openQuestion(s, ga.id, 2000 + i * 10000);
+    answer(s, ga.id, ga.questions[i].correct, 2001 + i * 10000);
+  }
+  assert.equal(targetFor(s.wins), 5);
+  assert.equal(
+    gb.target,
+    3,
+    "an active caller keeps the target quoted at admission",
+  );
+  assert.equal(gb.status, "playing");
+});
+
+test("capacity rejection preserves the code, question pool and attempt", () => {
+  const saved = process.env.RING_MAX_ACTIVE_CALLS;
+  process.env.RING_MAX_ACTIVE_CALLS = "1";
+  try {
+    const s = fixture();
+    const a = enqueue(s, "alice", "alice", 1000);
+    const b = enqueue(s, "bob", "bob", 1001);
+    const ga = beginGame(s, a.code, "a", 1100);
+    assert.throws(() => beginGame(s, b.code, "b", 1200), /slots are busy/);
+    assert.equal(s.questions.filter((q) => q.used).length, 3);
+    assert.equal(s.wallets.bob.cooldownUntil, 0);
+    finish(s, ga, "lost");
+    assert.equal(beginGame(s, b.code, "b", 1300).status, "playing");
+  } finally {
+    if (saved === undefined) delete process.env.RING_MAX_ACTIVE_CALLS;
+    else process.env.RING_MAX_ACTIVE_CALLS = saved;
+  }
+});
+
+test("an active game blocks another attempt even after ten minutes", () => {
+  const s = fixture();
+  const q = enqueue(s, "alice", "alice", 1000);
+  beginGame(s, q.code, "a", 1100);
+  assert.throws(() => enqueue(s, "alice", "alice", 4_000_000), /active call/);
 });
 test("a reused provider callback returns the same game", () => {
   const s = fixture();
