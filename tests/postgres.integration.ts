@@ -39,7 +39,7 @@ before(async () => {
     end $$;`);
   await admin.unsafe(
     readFileSync(
-      "supabase/migrations/20261007181502_ring_private_backend.sql",
+      "supabase/migrations/20261008005224_ring_private_backend.sql",
       "utf8",
     ),
   );

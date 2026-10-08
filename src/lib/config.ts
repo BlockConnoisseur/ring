@@ -1,4 +1,5 @@
 import type { Store } from "./game";
+import { signerSelected } from "./signer-config";
 export function liveReady() {
   return (
     process.env.RING_LIVE === "true" &&
@@ -9,7 +10,7 @@ export function liveReady() {
       process.env.TWILIO_ACCOUNT_SID &&
       process.env.VOICE_PUBLIC_URL &&
       process.env.DEEPGRAM_API_KEY &&
-      process.env.RING_AUTHORITY_KEYPAIR &&
+      signerSelected() &&
       process.env.RING_DBC_POOL &&
       process.env.RING_INITIAL_FEE_RECIPIENT &&
       (process.env.RING_ASSET_ORIGIN || process.env.APP_ORIGIN),

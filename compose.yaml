@@ -3,9 +3,8 @@ x-ring: &ring
   build: .
   restart: unless-stopped
   env_file: .env.local
-  environment:
+  environment: &ring-env
     RING_DB_PATH: /data/ring.sqlite
-    RING_AUTHORITY_KEYPAIR: /run/secrets/ring-authority
     VOICE_HOST: 0.0.0.0
   volumes:
     - ring-data:/data
@@ -13,18 +12,24 @@ services:
   web:
     <<: *ring
     command: npm start
+    environment:
+      <<: *ring-env
+      TURNKEY_API_PRIVATE_KEY: ""
   voice:
     <<: *ring
     command: npm run voice
+    environment:
+      <<: *ring-env
+      TURNKEY_API_PRIVATE_KEY: ""
   executor:
     <<: *ring
     command: npm run execute
-    volumes:
-      - ring-data:/data
-      - ./.secrets/authority.json:/run/secrets/ring-authority:ro
   questions:
     <<: *ring
     command: npm run questions:worker
+    environment:
+      <<: *ring-env
+      TURNKEY_API_PRIVATE_KEY: ""
   proxy:
     image: caddy:2
     restart: unless-stopped

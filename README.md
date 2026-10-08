@@ -35,7 +35,7 @@ The worker retains the creator/position authority. Protocol fees, another LP's f
 
 ## Configure a real deployment
 
-Copy `.env.example` to `.env.local` outside Git. Supply the public mint/pool addresses, RPC URL, Twilio number and credentials, Deepgram key, HTTPS origins and an authority keypair file. The signer must be the DBC creator, own its fee-bearing DAMM v2 positions after migration, and retain the token metadata update authority. Keep a small SOL balance for transaction fees, account rent and metadata growth. Ring never asks players for their private keys.
+Copy `.env.example` to `.env.local` outside Git. Supply the public mint/pool addresses, RPC URL, Twilio number and credentials, Deepgram key, HTTPS origins and Turnkey signer settings. Follow [PHONE-SETUP.md](PHONE-SETUP.md) for the real number/voice accounts and [TURNKEY.md](TURNKEY.md) for the authority wallet. These accounts can be prepared before the token exists. The signer must be the DBC creator, own its fee-bearing DAMM v2 positions after migration, and retain the token metadata update authority. Keep a small SOL balance for transaction fees, account rent and metadata growth. Ring never asks players for their private keys.
 
 ```sh
 npm run questions:sync
@@ -58,7 +58,7 @@ npm run questions:worker
 
 Set `RING_LIVE=true` after configuration. The website still closes the queue if workers are unavailable or questions run out. Test a real call before opening publicly. A database lease gives one voice worker ownership of the line; only one contestant plays at a time. Supabase allows the website and persistent workers to run on separate hosts. SQLite requires one host with shared disk. The voice worker always needs a persistent HTTPS/WebSocket host.
 
-Alternatively, the included Docker Compose stack runs the four processes and Caddy TLS proxy. Set `APP_DOMAIN` and `VOICE_DOMAIN` to DNS names pointing to the host, `APP_ORIGIN` and `RING_ASSET_ORIGIN` to the website HTTPS origin, and `VOICE_PUBLIC_URL` to the voice HTTPS origin. Place the authority file at `.secrets/authority.json`, then run `docker compose up --build -d`. With SQLite, back up the `ring-data` volume, including its live WAL or a consistent SQLite backup. With Supabase, configure database backups on the chosen plan. The database contains questions already used, sessions, proposals, assets, payout policy and transaction receipts; do not reset it on deployments. Only the executor container mounts the authority file.
+Alternatively, the included Docker Compose stack runs the four processes and Caddy TLS proxy. Set `APP_DOMAIN` and `VOICE_DOMAIN` to DNS names pointing to the host, `APP_ORIGIN` and `RING_ASSET_ORIGIN` to the website HTTPS origin, and `VOICE_PUBLIC_URL` to the voice HTTPS origin. Configure Turnkey as described above, then run `docker compose up --build -d`; no Solana private-key file is required. The optional `compose.keypair.yaml` adds a development-only local signer mount. With SQLite, back up the `ring-data` volume, including its live WAL or a consistent SQLite backup. With Supabase, configure database backups on the chosen plan. The database contains questions already used, sessions, proposals, assets, payout policy and transaction receipts; do not reset it on deployments. The default Compose stack passes the Turnkey API private key only to the executor.
 
 ## Questions
 

@@ -4,11 +4,13 @@ Ring supports Supabase Postgres for shared durable storage. Wallet authenticatio
 
 ## Cloud setup status
 
-The adapter and migration are implemented and tested against isolated PostgreSQL 17. No Supabase project has been created or changed yet. Project selection and any project cost must be confirmed before cloud provisioning.
+The private schema is deployed to the user-selected **Rings** project (`dlsmcqhtbyvvhzefxwke`, US East). The app uses a restricted `ring_runtime` login over the session pooler with verified TLS. Connection credentials are stored only in the ignored local environment. The existing bank of 405 questions was copied without resetting retirement history. The earlier empty Ring schema in the previously selected project was removed; its original application tables were left intact.
+
+The included `certs/supabase-prod-ca-2021.crt` is the public CA linked by [Supabase Studio's configuration](https://github.com/supabase/supabase/blob/master/apps/studio/hooks/custom-content/custom-content.json). It was fetched from Supabase's HTTPS download host. SHA-256 fingerprint: `80:70:25:AD:50:D4:ED:21:9D:2C:9C:7D:29:9C:00:4F:82:4E:B0:0C:F7:F6:5A:FE:F6:07:D0:7B:72:E6:CA:FA`. Set `RING_DATABASE_CA=certs/supabase-prod-ca-2021.crt` for this pooler; update from Supabase's official source when its CA changes.
 
 ## Provision once
 
-1. Create/select the intended project. Apply `supabase/migrations/20261007181502_ring_private_backend.sql` using the Supabase migration tool or linked CLI. This creates only the private `ring` schema and the `ring_backend` group role. Leave `ring` out of the Data API exposed schemas.
+1. Create/select the intended project. Apply `supabase/migrations/20261008005224_ring_private_backend.sql` using the Supabase migration tool or linked CLI. This creates only the private `ring` schema and the `ring_backend` group role. Leave `ring` out of the Data API exposed schemas.
 2. Create a dedicated database login with a strong generated password and membership in `ring_backend`. The group grants only the required table operations; assets cannot be updated or deleted by the app. Do not run the app as `postgres` or with a service-role key.
 
 ```sql

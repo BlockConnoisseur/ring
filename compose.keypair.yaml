@@ -1,0 +1,8 @@
+# Optional local-key signer. The default compose stack uses Turnkey.
+services:
+  executor:
+    environment:
+      RING_SIGNER: keypair
+      RING_AUTHORITY_KEYPAIR: /run/secrets/ring-authority
+    volumes:
+      - ./.secrets/authority.json:/run/secrets/ring-authority:ro

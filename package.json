@@ -38,6 +38,8 @@
     "@solana/spl-token": "^0.4.15",
     "@solana/spl-token-metadata": "^0.1.6",
     "@solana/web3.js": "^1.99.0",
+    "@turnkey/sdk-server": "8.6.0",
+    "@turnkey/solana": "1.1.44",
     "bn.js": "^5.2.5",
     "bs58": "^6.0.0",
     "next": "16.4.0",

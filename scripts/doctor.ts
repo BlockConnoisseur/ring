@@ -15,12 +15,13 @@ import {
 } from "@metaplex-foundation/mpl-token-metadata";
 import twilio from "twilio";
 import { closeDatabase, usesPostgres } from "../src/lib/database";
+import { signerVariables, signerProvider } from "../src/lib/signer-config";
 
 async function main() {
   const required = [
     "APP_ORIGIN",
     "RING_TOKEN_MINT",
-    "RING_AUTHORITY_KEYPAIR",
+    ...signerVariables(),
     "RING_DBC_POOL",
     "RING_INITIAL_FEE_RECIPIENT",
     "RING_PHONE_NUMBER",
@@ -30,6 +31,7 @@ async function main() {
     "DEEPGRAM_API_KEY",
   ];
   let failures = 0;
+  console.log(`SIGNER ${signerProvider()}`);
   for (const name of required) {
     const ok = Boolean(process.env[name]);
     console.log(`${ok ? "OK" : "MISSING"} ${name}`);

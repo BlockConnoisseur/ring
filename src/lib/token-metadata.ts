@@ -1,6 +1,5 @@
 import {
   Connection,
-  Keypair,
   PublicKey,
   SystemProgram,
   Transaction,
@@ -15,8 +14,8 @@ import {
 import { createUpdateFieldInstruction } from "@solana/spl-token-metadata";
 import { createUmi } from "@metaplex-foundation/umi-bundle-defaults";
 import {
-  createSignerFromKeypair,
-  keypairIdentity,
+  createNoopSigner,
+  signerIdentity,
   publicKey,
 } from "@metaplex-foundation/umi";
 import {
@@ -121,7 +120,7 @@ async function loadJson(uri: string) {
 
 export async function metadataTransaction(
   connection: Connection,
-  signer: Keypair,
+  signer: { publicKey: PublicKey },
   proposal: Proposal,
 ) {
   const mint = ringMint();
@@ -190,11 +189,10 @@ export async function metadataTransaction(
   if (!account.owner.equals(TOKEN_PROGRAM_ID))
     throw new Error("Unsupported Ring token program.");
   const umi = createUmi(connection.rpcEndpoint).use(mplTokenMetadata());
-  const identity = createSignerFromKeypair(
-    umi,
-    umi.eddsa.createKeypairFromSecretKey(signer.secretKey),
-  );
-  umi.use(keypairIdentity(identity));
+  // Build instructions using the authority address. The complete transaction
+  // is signed later by Turnkey or the local signer, then journaled before send.
+  const identity = createNoopSigner(publicKey(signer.publicKey.toBase58()));
+  umi.use(signerIdentity(identity));
   const metadata = await fetchMetadataFromSeeds(umi, {
     mint: publicKey(mint.toBase58()),
   });

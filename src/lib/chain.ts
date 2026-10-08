@@ -1,26 +1,14 @@
-import { readFileSync } from "node:fs";
-import { Connection, Keypair, PublicKey, Transaction } from "@solana/web3.js";
+import { Connection, PublicKey, Transaction } from "@solana/web3.js";
 import bs58 from "bs58";
 import type { TransactionTransport } from "./operations";
+import type { Authority } from "./signer";
+export { authority } from "./signer";
 
 export function chain() {
   return new Connection(
     process.env.SOLANA_RPC_URL || "https://api.mainnet-beta.solana.com",
     "finalized",
   );
-}
-export function authority() {
-  const file = process.env.RING_AUTHORITY_KEYPAIR;
-  if (!file)
-    throw new Error("Set RING_AUTHORITY_KEYPAIR to the private signer file.");
-  const bytes = JSON.parse(readFileSync(file, "utf8"));
-  if (
-    !Array.isArray(bytes) ||
-    bytes.length !== 64 ||
-    bytes.some((b) => !Number.isInteger(b) || b < 0 || b > 255)
-  )
-    throw new Error("Invalid authority keypair file.");
-  return Keypair.fromSecretKey(Uint8Array.from(bytes));
 }
 export function ringMint() {
   if (!process.env.RING_TOKEN_MINT)
@@ -53,16 +41,25 @@ export function transport(connection: Connection): TransactionTransport {
 }
 export async function signTransaction(
   connection: Connection,
-  signer: Keypair,
+  signer: Authority,
   transaction: Transaction,
 ) {
   const latest = await connection.getLatestBlockhash("finalized");
   transaction.feePayer = signer.publicKey;
   transaction.recentBlockhash = latest.blockhash;
-  transaction.sign(signer);
+  const message = Buffer.from(transaction.serializeMessage());
+  const signed = await signer.signTransaction(transaction);
+  if (!message.equals(Buffer.from(signed.serializeMessage())))
+    throw new Error("Signer changed the transaction message.");
+  if (
+    !signed.feePayer?.equals(signer.publicKey) ||
+    !signed.signature ||
+    !signed.verifySignatures()
+  )
+    throw new Error("Signer returned an invalid transaction signature.");
   return {
-    raw: transaction.serialize().toString("base64"),
-    signature: bs58.encode(transaction.signature!),
+    raw: signed.serialize().toString("base64"),
+    signature: bs58.encode(signed.signature),
     lastValidBlockHeight: latest.lastValidBlockHeight,
   };
 }

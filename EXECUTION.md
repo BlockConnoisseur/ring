@@ -2,6 +2,8 @@
 
 The execution worker reads verified wins directly from the shared database (Supabase Postgres or local SQLite). It accepts no external execution payload and exposes no signing endpoint. It processes wins in order and never accepts caller-provided instructions, program IDs, RPC endpoints or metadata destination URLs.
 
+The default configuration uses Turnkey for the authority wallet. The transaction builder needs only its public address. After Turnkey signs, Ring verifies the unchanged transaction message and all required signatures before journaling or broadcasting. A local keypair provider remains available for development. See [TURNKEY.md](TURNKEY.md) for account and policy setup.
+
 ## Metadata
 
 `src/lib/token-metadata.ts` reads the exact configured mint, checks its token program and update authority, loads its current JSON, preserves unrelated fields and changes only the submitted description or image. Image changes replace the prior image attachment while retaining other media and properties. Images and resulting JSON live at content-addressed `/api/assets/<sha256>` URLs, stored in the shared database and served with immutable caching. Keep this origin and database available permanently.
