@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
+import { CallLobby } from "./call-lobby";
+import { Icon } from "./ui/icon";
 import bs58 from "bs58";
 import {
   labels,
@@ -669,7 +671,10 @@ export default function Ring({
                 </p>
               </div>
               <button className="text-button" onClick={() => compose()}>
-                Propose a change <span className="plus">+</span>
+                Propose a change{" "}
+                <span className="plus">
+                  <Icon name="plus" />
+                </span>
               </button>
             </div>
             <div className="board-layout">
@@ -892,13 +897,21 @@ export default function Ring({
                   aria-label="Required streak increases from 3 to 5 to 7 to 9"
                 >
                   <strong>3</strong>
-                  <span>→</span>
+                  <span>
+                    <Arrow />
+                  </span>
                   <strong>5</strong>
-                  <span>→</span>
+                  <span>
+                    <Arrow />
+                  </span>
                   <strong>7</strong>
-                  <span>→</span>
+                  <span>
+                    <Arrow />
+                  </span>
                   <strong>9</strong>
-                  <span>↗</span>
+                  <span>
+                    <Arrow diagonal />
+                  </span>
                 </div>
                 <span className="progression-caption">
                   Every win adds two questions for new games. Your target stays
@@ -965,7 +978,7 @@ export default function Ring({
             aria-label="Dismiss notification"
             onClick={() => setNotice("")}
           >
-            ×
+            <Icon name="close" />
           </button>
         </div>
       )}
@@ -988,7 +1001,7 @@ export default function Ring({
             aria-label="Close dialog"
             onClick={() => setPanel(null)}
           >
-            ×
+            <Icon name="close" />
           </button>
           {panel === "wallet" && (
             <>
@@ -1127,7 +1140,9 @@ export default function Ring({
                           alt="Your proposed token picture"
                         />
                       ) : (
-                        <span className="upload-plus">+</span>
+                        <span className="upload-plus">
+                          <Icon name="plus" />
+                        </span>
                       )}
                       <span>
                         {draft.image
@@ -1259,145 +1274,25 @@ export default function Ring({
                       open("wallet");
                     }}
                   >
-                    Connect wallet to post ↗
+                    Connect wallet to post <Arrow diagonal />
                   </button>
                 )}
               </form>
             </>
           )}
           {panel === "call" && (
-            <>
-              <p className="eyebrow">Ring hotline</p>
-              <h2 id="panel-title">
-                {state.live
-                  ? "You’re on the line."
-                  : "Almost time\nto pick up."}
-              </h2>
-              <p>
-                {state.live
-                  ? "Enter your private four-digit code on the phone keypad. It links the call to your wallet and locked proposal."
-                  : "The real phone line opens when Ring launches. Have your proposal ready."}
-              </p>
-              <div className="call-checklist">
-                <div>
-                  <span>01</span>
-                  <p>
-                    Connect a wallet
-                    <strong>
-                      {state.session
-                        ? short(state.session.wallet)
-                        : "Your identity on Ring"}
-                    </strong>
-                  </p>
-                </div>
-                <div>
-                  <span>02</span>
-                  <p>
-                    Hold any amount of Ring
-                    <strong>
-                      {!state.mint
-                        ? "Token address to be announced"
-                        : state.session?.eligible
-                          ? "Holding requirement met"
-                          : "Balance verified before your call"}
-                    </strong>
-                  </p>
-                </div>
-                <div>
-                  <span>03</span>
-                  <p>
-                    Lock your proposal
-                    <strong>
-                      {state.queue
-                        ? state.lastGame?.status === "playing"
-                          ? "Your call is in progress"
-                          : "Your private code is ready"
-                        : "Pick the change you’re playing for"}
-                    </strong>
-                  </p>
-                </div>
-              </div>
-              {state.queue?.code && (
-                <div className="call-code">
-                  <span>YOUR PRIVATE CALL CODE</span>
-                  <strong>{state.queue.code}</strong>
-                  <small>
-                    Expires{" "}
-                    {new Date(state.queue.expiresAt!).toLocaleTimeString([], {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                    . Never share it.
-                  </small>
-                </div>
-              )}
-              {cooldown > 0 ? (
-                <p className="form-error">
-                  Your next attempt is in {countdown}.
-                </p>
-              ) : null}
-              {state.lastGame && (
-                <p className="proposal-disclosure" aria-live="polite">
-                  {state.lastGame.status === "playing"
-                    ? `On the call: ${state.lastGame.correct} of ${state.lastGame.target} correct.`
-                    : state.lastGame.execution === "applied"
-                      ? "You won. Your token change is confirmed."
-                      : state.lastGame.execution === "holding_required"
-                        ? "You won. Hold Ring in your connected wallet to apply your change."
-                        : state.lastGame.status === "won"
-                          ? "You won. Your change is waiting for chain confirmation."
-                          : state.lastGame.status === "void"
-                            ? "The call had a technical problem. Your attempt was restored."
-                            : "Your last run ended. Try again when your cooldown expires."}
-                </p>
-              )}
-              {state.queue && state.lastGame?.status !== "playing" && (
-                <div className="form-actions">
-                  <button
-                    className="text-button"
-                    disabled={busy}
-                    onClick={() => void queueAction("code")}
-                  >
-                    Get a new private code
-                  </button>
-                  <button
-                    className="text-button"
-                    disabled={busy}
-                    onClick={() => void queueAction("cancel")}
-                  >
-                    Leave queue
-                  </button>
-                </div>
-              )}
-              {error && (
-                <p className="form-error" role="alert">
-                  {error}
-                </p>
-              )}
-              {state.live && state.phone && state.queue ? (
-                <a className="primary-button" href={`tel:${state.phone}`}>
-                  <PhoneIcon />
-                  Call {state.phone}
-                </a>
-              ) : (
-                <button
-                  className="primary-button"
-                  onClick={() => (state.session ? compose() : open("wallet"))}
-                >
-                  {state.session ? "Prepare a proposal" : "Connect your wallet"}
-                  <Arrow />
-                </button>
-              )}
-              <p className="small-copy">
-                {state.lastGame?.status === "playing"
-                  ? state.lastGame.target
-                  : state.required}{" "}
-                right in a row. Eight seconds per answer. Your target locks when
-                your call starts.
-                {state.calls &&
-                  ` ${state.calls.active} of ${state.calls.capacity} call slots in use.`}
-              </p>
-            </>
+            <CallLobby
+              state={state}
+              now={now}
+              cooldown={cooldown}
+              countdown={countdown}
+              busy={busy}
+              error={error}
+              onConnect={() => open("wallet")}
+              onCompose={() => compose()}
+              onCode={() => void queueAction("code")}
+              onCancel={() => void queueAction("cancel")}
+            />
           )}
           {panel === "detail" && selected && (
             <>
@@ -1424,7 +1319,7 @@ export default function Ring({
                   target="_blank"
                   rel="noreferrer"
                 >
-                  View confirmed transaction ↗
+                  View confirmed transaction <Arrow diagonal />
                 </a>
               )}
               {state.session?.wallet === selected.wallet &&

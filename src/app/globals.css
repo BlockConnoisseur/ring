@@ -2015,3 +2015,385 @@ textarea {
     font-size: 25px;
   }
 }
+/* shadcn Card composition, expressed through Ring's theme tokens. */
+.ui-card {
+  --card-spacing: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--card-spacing);
+  padding-block: var(--card-spacing);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--ink);
+  overflow: hidden;
+  min-width: 0;
+}
+.ui-card[data-size="sm"] {
+  --card-spacing: 16px;
+}
+.ui-card:has(> .ui-card-footer) {
+  padding-bottom: 0;
+}
+.ui-card-header,
+.ui-card-content,
+.ui-card-footer {
+  padding-inline: var(--card-spacing);
+}
+.ui-card-header {
+  display: grid;
+  gap: 8px;
+  align-items: start;
+}
+.ui-card-header:has(.ui-card-action) {
+  grid-template-columns: 1fr auto;
+}
+.ui-card-title {
+  font-size: 17px;
+  font-weight: 600;
+}
+.ui-card-description {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.ui-card-action {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  justify-self: end;
+}
+.ui-card-footer {
+  display: flex;
+  align-items: center;
+  padding-block: 18px;
+  border-top: 1px solid var(--line);
+}
+/* A phone call gets its own lobby: a hotline plate and a private paper ticket. */
+.panel-call {
+  width: min(960px, calc(100% - 40px));
+  border-radius: 16px;
+}
+.panel-call .panel-content {
+  padding: 38px;
+}
+.close-button {
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+}
+.close-button:hover {
+  background: var(--surface);
+}
+.panel-call .close-button {
+  top: 18px;
+  right: 18px;
+}
+.lobby-heading {
+  padding-right: 32px;
+  margin-bottom: 26px;
+}
+.panel .lobby-heading h2 {
+  font-size: clamp(32px, 4vw, 48px);
+  letter-spacing: -0.035em;
+  line-height: 1.04;
+  margin-bottom: 12px;
+}
+.lobby-heading h2 span {
+  color: var(--accent);
+}
+.panel .lobby-heading p {
+  margin: 0;
+  font-size: 14px;
+}
+.lobby-grid {
+  display: grid;
+  grid-template-columns: 1fr 1.1fr;
+  gap: 18px;
+}
+.lobby-grid h3 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+.hotline-card {
+  --line: rgb(255 255 255 / 0.25);
+  background: var(--brand);
+  color: #fff;
+  border: 0;
+}
+.hotline-card .ui-card-header {
+  gap: 25px;
+}
+.line-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 500;
+}
+.status-light {
+  width: 7px;
+  height: 7px;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+}
+.status-light.active {
+  background: currentColor;
+}
+.hotline-card .ui-card-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+.receiver-emblem {
+  margin: 8px 0 28px;
+}
+.receiver-emblem svg {
+  width: 54px;
+  height: 54px;
+  stroke-width: 1.3;
+}
+.lobby-number {
+  font-size: clamp(22px, 2.7vw, 32px);
+  font-weight: 600;
+  letter-spacing: -0.035em;
+}
+.panel .hotline-card p {
+  color: #fff;
+  margin: 12px 0 24px;
+  font-size: 12px;
+  max-width: 31ch;
+}
+.lobby-rules {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  width: 100%;
+  gap: 20px;
+  margin: auto 0 0;
+  padding-top: 20px;
+  border-top: 1px solid var(--line);
+}
+.lobby-rules dt {
+  font-size: 11px;
+  margin-bottom: 5px;
+}
+.lobby-rules dd {
+  margin: 0;
+  font-size: 35px;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+.lobby-rules small {
+  font-size: 11px;
+}
+.hotline-card .ui-card-footer {
+  font-size: 10px;
+  line-height: 1.8;
+}
+.lobby-preparation {
+  display: grid;
+  gap: 16px;
+}
+.readiness-card {
+  gap: 18px;
+}
+.readiness-list {
+  padding: 0;
+  margin: 0;
+  list-style: none;
+  display: grid;
+  gap: 19px;
+}
+.readiness-list li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.readiness-icon {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  flex-shrink: 0;
+  color: var(--muted);
+}
+.readiness-list [data-complete="true"] .readiness-icon {
+  color: var(--ink);
+  background: var(--canvas);
+}
+.readiness-list strong {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+}
+.readiness-list li div > span {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+.ticket-card {
+  --card-spacing: 22px;
+  background: var(--canvas);
+  gap: 16px;
+}
+.ticket-card h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+.ticket-card h3 svg {
+  width: 16px;
+  height: 16px;
+}
+.ticket-digits {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+.ticket-digits > span {
+  height: 58px;
+  display: grid;
+  place-items: center;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font: 29px var(--font-mono);
+}
+.empty-digit {
+  width: 12px;
+  height: 2px;
+  background: var(--muted);
+}
+.panel .ticket-note {
+  margin: 12px 0 0;
+  font-size: 10px;
+}
+.ticket-actions {
+  justify-content: space-between;
+  gap: 12px;
+}
+.ticket-actions .text-button {
+  font-size: 11px;
+}
+.lobby-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 22px;
+  margin-top: 26px;
+}
+.lobby-footer strong {
+  font-size: 12px;
+  font-weight: 500;
+}
+.panel .lobby-footer p {
+  font-size: 11px;
+  margin: 4px 0 0;
+}
+.panel .lobby-cta {
+  width: auto;
+  min-width: 245px;
+  gap: 16px;
+  font-size: 12px;
+  margin: 0;
+  border-radius: 8px;
+}
+.panel .lobby-result {
+  border: 1px solid var(--line);
+  padding: 14px 18px;
+  border-radius: 8px;
+  margin: 20px 0 0;
+  color: var(--ink);
+}
+@media (max-width: 680px) {
+  .panel-call {
+    width: calc(100% - 20px);
+    max-height: calc(100dvh - 20px);
+  }
+  .panel-call .panel-content {
+    padding: 26px 20px;
+  }
+  .panel-call .close-button {
+    top: 14px;
+    right: 10px;
+  }
+  .lobby-heading {
+    margin-bottom: 22px;
+  }
+  .panel .lobby-heading p {
+    font-size: 12px;
+  }
+  .lobby-grid {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+  .hotline-card {
+    --card-spacing: 20px;
+    gap: 18px;
+  }
+  .hotline-card .ui-card-header {
+    gap: 14px;
+  }
+  .hotline-card .ui-card-content {
+    position: relative;
+  }
+  .receiver-emblem {
+    position: absolute;
+    right: 22px;
+    top: -49px;
+    margin: 0;
+  }
+  .receiver-emblem svg {
+    width: 28px;
+    height: 28px;
+  }
+  .lobby-number {
+    font-size: clamp(23px, 6.8vw, 32px);
+  }
+  .panel .hotline-card p {
+    max-width: none;
+    margin: 10px 0 18px;
+  }
+  .lobby-rules {
+    padding-top: 15px;
+  }
+  .lobby-rules dd {
+    font-size: 28px;
+  }
+  .hotline-card .ui-card-footer {
+    padding-block: 12px;
+  }
+  .readiness-card {
+    --card-spacing: 20px;
+  }
+  .lobby-footer {
+    flex-direction: column-reverse;
+    align-items: stretch;
+    text-align: center;
+    gap: 15px;
+  }
+  .panel .lobby-cta {
+    width: 100%;
+    min-width: 0;
+    justify-content: center;
+  }
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
