@@ -1,0 +1,8 @@
+.env*
+.secrets/**
+.data/**
+.git/**
+node_modules/**
+.next/**
+docs/**
+*.tsbuildinfo

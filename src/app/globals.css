@@ -30,6 +30,7 @@ body {
 }
 button,
 input,
+select,
 textarea {
   font: inherit;
 }
@@ -860,6 +861,7 @@ h1 span {
   color: var(--muted);
 }
 input:not([type="file"]),
+select,
 textarea {
   width: 100%;
   padding: 13px 14px;

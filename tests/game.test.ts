@@ -10,6 +10,8 @@ import {
   expireQueue,
   firstSpokenChoice,
   finish,
+  hash,
+  refreshCode,
   openQuestion,
   startQuestionPlayback,
   targetFor,
@@ -53,6 +55,34 @@ test("reserving a place does not consume an attempt", () => {
   const s = fixture();
   enqueue(s, "alice", "alice", 1000);
   assert.equal(s.wallets.alice.cooldownUntil, 0);
+});
+
+test("four-digit codes are private, rotate, and fail safely when fully reserved", () => {
+  const s = fixture();
+  const first = enqueue(s, "alice", "alice", 1000);
+  const second = enqueue(s, "bob", "bob", 1000);
+  assert.match(first.code, /^[1-9]\d{3}$/);
+  assert.notEqual(first.code, second.code);
+  assert.equal(JSON.stringify(s).includes(`"code":"${first.code}"`), false);
+  const replacement = refreshCode(s, "alice", 1100);
+  assert.notEqual(replacement.code, first.code);
+  assert.notEqual(replacement.code, second.code);
+  assert.throws(() => beginGame(s, first.code, "old-code", 1200), /invalid/);
+  assert.equal(
+    beginGame(s, replacement.code, "new-code", 1200).proposalId,
+    "alice",
+  );
+  const full = fixture();
+  full.queue = Array.from({ length: 9000 }, (_, i) => ({
+    wallet: `holder${i}`,
+    proposalId: `p${i}`,
+    codeHash: hash(String(1000 + i)),
+    createdAt: 0,
+    expiresAt: 5000,
+    status: "waiting",
+  }));
+  assert.throws(() => enqueue(full, "alice", "alice", 1000), /reserved/);
+  assert.equal(full.proposals[0].status, "open");
 });
 test("a full win increases global target exactly once and enqueues one execution", () => {
   const s = fixture();

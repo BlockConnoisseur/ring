@@ -267,6 +267,7 @@ test("holder signs in, posts all change types, comments, queues, recovers code, 
     const queued = await post("queue", { proposalId: id }, undefined, cookie);
     assert.equal(queued.status, 200);
     const before = await queued.json();
+    assert.match(before.code, /^[1-9]\d{3}$/);
     const replaced = await (
       await post("queue/code", {}, undefined, cookie)
     ).json();
@@ -279,6 +280,59 @@ test("holder signs in, posts all change types, comments, queues, recovers code, 
     assert.equal(
       (await readStore()).proposals.find((p) => p.id === id)?.status,
       "open",
+    );
+    // The next ready post issues a private code without a separate queue request.
+    for (const [kind, value] of [
+      ["name", "Ring Again"],
+      ["symbol", "DIAL"],
+      ["website", "https://ringai.dev/about"],
+    ]) {
+      await transact((s) => {
+        delete s.limits[`proposal:${wallet}`];
+      });
+      const posted = await post(
+        "proposals",
+        { ...payload, kind, value },
+        undefined,
+        cookie,
+      );
+      assert.equal(posted.status, 201);
+      const result = await posted.json();
+      assert.match(result.call.code, /^[1-9]\d{3}$/);
+      const data = await readStore();
+      assert.equal(
+        data.queue.find((q) => q.wallet === wallet && q.status === "waiting")
+          ?.proposalId,
+        result.id,
+      );
+      const publicResult = await GET(
+        new NextRequest("http://127.0.0.1:3320/api/state"),
+        { params: Promise.resolve({ path: ["state"] }) },
+      );
+      assert.equal((await publicResult.json()).queue, null);
+      await post("queue/cancel", {}, undefined, cookie);
+    }
+    assert.equal(
+      (
+        await post(
+          "proposals",
+          { ...payload, kind: "name", value: "😀".repeat(9) },
+          undefined,
+          cookie,
+        )
+      ).status,
+      400,
+    );
+    assert.equal(
+      (
+        await post(
+          "proposals",
+          { ...payload, kind: "website", value: "javascript:alert(1)" },
+          undefined,
+          cookie,
+        )
+      ).status,
+      400,
     );
   } finally {
     globalThis.fetch = original;

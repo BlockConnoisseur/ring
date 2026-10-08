@@ -18,6 +18,7 @@ import {
   timeout,
   targetFor,
   type Game,
+  CALL_CODE_DIGITS,
 } from "../src/lib/game";
 import { requireHolding } from "../src/lib/solana";
 import { liveReady } from "../src/lib/config";
@@ -121,19 +122,37 @@ const server = createServer(async (req, res) => {
       );
       const gather = xml.gather({
         input: ["dtmf"],
-        numDigits: 6,
+        numDigits: CALL_CODE_DIGITS,
         timeout: 10,
         action: base + "/code",
         method: "POST",
         actionOnEmptyResult: true,
       });
-      gather.say("Enter the six digit private code from your proposal page.");
+      gather.say("Enter the four digit private code from your proposal page.");
       res.end(xml.toString());
       return;
     }
-    await transact((s) =>
-      rateLimit(s, `pin:${form.CallSid}`, Date.now(), 3, 3600_000),
-    );
+    if (!/^\+[1-9]\d{6,14}$/.test(form.From || "")) {
+      res.end(
+        message(
+          "Please call from a number with caller ID to use your private code.",
+        ),
+      );
+      return;
+    }
+    await transact((s) => {
+      rateLimit(s, `pin:${form.CallSid}`, Date.now(), 3, 3600_000);
+      // Persist across redials; a short code must not have unlimited guesses.
+      rateLimit(s, `caller:${hash(form.From)}`, Date.now(), 5, 600_000);
+    });
+    if (!/^\d{4}$/.test(form.Digits || "")) {
+      res.end(
+        message(
+          "That code is invalid or expired. Enter the four digit code from Ring.",
+        ),
+      );
+      return;
+    }
     const currentState = await readStore();
     const previous = currentState.games.find((g) => g.callSid === form.CallSid);
     const queue = currentState.queue.find(

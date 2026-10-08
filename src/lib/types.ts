@@ -1,4 +1,12 @@
-export type ProposalKind = "picture" | "description" | "fees";
+export const proposalKinds = [
+  "name",
+  "symbol",
+  "picture",
+  "description",
+  "website",
+  "fees",
+] as const;
+export type ProposalKind = (typeof proposalKinds)[number];
 export type Proposal = {
   id: string;
   title: string;
@@ -38,7 +46,10 @@ export type PublicState = {
   queue: { position: number; code?: string; expiresAt?: number } | null;
 };
 export const labels: Record<ProposalKind, string> = {
-  picture: "Token picture",
+  name: "Coin name",
+  symbol: "Ticker symbol",
+  picture: "Profile picture",
   description: "Description",
-  fees: "Creator fees",
+  website: "Website link",
+  fees: "Fee recipient",
 };

@@ -115,7 +115,12 @@ test(
         extra: Record<string, string> = {},
         valid = true,
       ) {
-        const form = { AccountSid: sid, CallSid: callSid, ...extra };
+        const form = {
+          AccountSid: sid,
+          CallSid: callSid,
+          From: "+12025550124",
+          ...extra,
+        };
         return fetch(`http://127.0.0.1:${port}${path}`, {
           method: "POST",
           headers: {
@@ -128,9 +133,9 @@ test(
         });
       }
       assert.equal((await post("/incoming", {}, false)).status, 403);
-      assert.match(await (await post("/incoming")).text(), /numDigits="6"/);
+      assert.match(await (await post("/incoming")).text(), /numDigits="4"/);
       assert.match(
-        await (await post("/code", { Digits: "000000" })).text(),
+        await (await post("/code", { Digits: "0000" })).text(),
         /invalid or expired/,
       );
       const xml = await (await post("/code", { Digits: code })).text();
@@ -228,6 +233,37 @@ test(
       await post("/status", { CallStatus: "completed" });
       await post("/status", { CallStatus: "completed" });
       assert.equal((await readStore()).executions.length, 1);
+      for (let i = 0; i < 5; i++)
+        assert.match(
+          await (
+            await post("/code", {
+              From: "+12025550125",
+              CallSid: `CAredial${i}`,
+              Digits: "0000",
+            })
+          ).text(),
+          /invalid or expired/,
+        );
+      assert.match(
+        await (
+          await post("/code", {
+            From: "+12025550125",
+            CallSid: "CAredial6",
+            Digits: "0000",
+          })
+        ).text(),
+        /Too many requests/,
+      );
+      assert.match(
+        await (
+          await post("/code", {
+            From: "anonymous",
+            CallSid: "CAanonymous",
+            Digits: "0000",
+          })
+        ).text(),
+        /caller ID/,
+      );
     } finally {
       ws?.terminate();
       child.kill();

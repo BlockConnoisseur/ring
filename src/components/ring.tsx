@@ -5,6 +5,7 @@ import Image from "next/image";
 import bs58 from "bs58";
 import {
   labels,
+  proposalKinds,
   type Proposal,
   type ProposalKind,
   type PublicState,
@@ -185,7 +186,7 @@ export default function Ring() {
         if (
           saved &&
           typeof saved.title === "string" &&
-          ["picture", "description", "fees"].includes(saved.kind)
+          proposalKinds.includes(saved.kind)
         )
           setSavedDraft(saved);
       }
@@ -291,12 +292,35 @@ export default function Ring() {
     }
     setBusy(true);
     try {
-      await api("proposals", draft);
+      const result = await api<{ id: string; call: PublicState["queue"] }>(
+        "proposals",
+        draft,
+      );
       localStorage.removeItem("ring:draft:v1");
       setSavedDraft(null);
       await refresh();
-      setPanel(null);
-      setNotice("Proposal posted. Open it to join the call queue.");
+      if (result.call?.code) {
+        try {
+          sessionStorage.setItem(
+            `ring:code:${state.session.wallet}`,
+            JSON.stringify(result.call),
+          );
+        } catch {}
+        setState((prev) => ({ ...prev, queue: result.call }));
+        open("call");
+        setNotice(
+          "Proposal posted. Enter your private four-digit code when you call.",
+        );
+      } else {
+        const posted = await api<{ proposal: Proposal }>(
+          `proposals/${result.id}`,
+        );
+        setSelected(posted.proposal);
+        open("detail");
+        setNotice(
+          "Proposal posted. Get a call code here when you’re ready and the line is open.",
+        );
+      }
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -517,21 +541,18 @@ export default function Ring() {
           <div className="board-layout">
             <div className="board-main">
               <div className="board-filters" aria-label="Filter proposals">
-                {[
-                  ["all", "All proposals"],
-                  ["picture", "Picture"],
-                  ["description", "Description"],
-                  ["fees", "Fees"],
-                ].map(([key, label]) => (
-                  <button
-                    key={key}
-                    aria-pressed={filter === key}
-                    className={filter === key ? "active" : ""}
-                    onClick={() => setFilter(key)}
-                  >
-                    {label}
-                  </button>
-                ))}
+                {[["all", "All proposals"], ...Object.entries(labels)].map(
+                  ([key, label]) => (
+                    <button
+                      key={key}
+                      aria-pressed={filter === key}
+                      className={filter === key ? "active" : ""}
+                      onClick={() => setFilter(key)}
+                    >
+                      {label}
+                    </button>
+                  ),
+                )}
                 <span>{filtered.length.toString().padStart(2, "0")}</span>
               </div>
               {networkError ? (
@@ -753,7 +774,7 @@ export default function Ring() {
                 ],
                 [
                   "Put your idea on the board.",
-                  "Choose a supported change and submit the exact picture, description, or fee wallet. Your proposal is locked before you play.",
+                  "Choose a change from the dropdown and post exactly what you want. Your private four-digit code connects that proposal to your call.",
                 ],
                 [
                   "Call. Think fast.",
@@ -901,26 +922,24 @@ export default function Ring() {
                 <label className="field-label" htmlFor="proposal-kind">
                   What are we changing?
                 </label>
-                <div className="kind-picker" id="proposal-kind">
+                <select
+                  id="proposal-kind"
+                  value={draft.kind}
+                  onChange={(e) =>
+                    setDraft((prev) => ({
+                      ...prev,
+                      kind: e.target.value as ProposalKind,
+                      value: "",
+                      image: "",
+                    }))
+                  }
+                >
                   {Object.entries(labels).map(([kind, label]) => (
-                    <button
-                      type="button"
-                      key={kind}
-                      aria-pressed={draft.kind === kind}
-                      className={draft.kind === kind ? "active" : ""}
-                      onClick={() =>
-                        setDraft((prev) => ({
-                          ...prev,
-                          kind: kind as ProposalKind,
-                          value: "",
-                          image: "",
-                        }))
-                      }
-                    >
+                    <option key={kind} value={kind}>
                       {label}
-                    </button>
+                    </option>
                   ))}
-                </div>
+                </select>
                 <label className="field-label" htmlFor="title">
                   Give it a title
                 </label>
@@ -985,7 +1004,13 @@ export default function Ring() {
                     <label className="field-label" htmlFor="value">
                       {draft.kind === "fees"
                         ? "Recipient Solana wallet"
-                        : "The new description"}
+                        : draft.kind === "name"
+                          ? "The new coin name"
+                          : draft.kind === "symbol"
+                            ? "The new ticker symbol"
+                            : draft.kind === "website"
+                              ? "The new website link"
+                              : "The new description"}
                     </label>
                     {draft.kind === "description" ? (
                       <textarea
@@ -1002,12 +1027,35 @@ export default function Ring() {
                     ) : (
                       <input
                         id="value"
+                        type={draft.kind === "website" ? "url" : "text"}
+                        maxLength={
+                          draft.kind === "name"
+                            ? 32
+                            : draft.kind === "symbol"
+                              ? 10
+                              : draft.kind === "fees"
+                                ? 44
+                                : 500
+                        }
+                        pattern={
+                          draft.kind === "symbol"
+                            ? "[A-Za-z0-9]{1,10}"
+                            : undefined
+                        }
                         required
                         value={draft.value}
                         onChange={(e) =>
                           setDraft({ ...draft, value: e.target.value })
                         }
-                        placeholder="Paste the full wallet address"
+                        placeholder={
+                          draft.kind === "name"
+                            ? "Give the coin a new name"
+                            : draft.kind === "symbol"
+                              ? "RING"
+                              : draft.kind === "website"
+                                ? "https://your-site.com"
+                                : "Paste the full wallet address"
+                        }
                       />
                     )}
                   </>
@@ -1025,10 +1073,10 @@ export default function Ring() {
                 />
                 <div className="proposal-disclosure">
                   {state.canPost
-                    ? "Your exact proposal will be locked when you join the queue."
+                    ? "Post your proposal to get a private four-digit call code when the line is open. Codes expire after ten minutes."
                     : "Ring is in prelaunch. You can save your idea as a private draft now."}
                   {draft.kind === "fees" &&
-                    " The winning wallet receives Ring’s creator fees until the next fee proposal is applied. Previous fees settle first. SOL payouts arrive as wrapped SOL."}
+                    " Your chosen wallet receives Ring’s creator fees until the next fee proposal is applied. Previous fees settle first. SOL payouts arrive as wrapped SOL."}
                 </div>
                 {error && (
                   <p className="form-error" role="alert">
@@ -1083,7 +1131,7 @@ export default function Ring() {
               </h2>
               <p>
                 {state.live
-                  ? "Your code links your phone call to your locked proposal."
+                  ? "Enter your private four-digit code on the phone keypad. It links the call to your wallet and locked proposal."
                   : "The real phone line opens when Ring launches. Have your proposal ready."}
               </p>
               <div className="call-checklist">

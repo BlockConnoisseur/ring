@@ -3,6 +3,7 @@ const config: NextConfig = {
   devIndicators: false,
   serverExternalPackages: ["twilio"],
   turbopack: { root: process.cwd() },
+  outputFileTracingIncludes: { "/api/*": ["./certs/*.crt"] },
   async headers() {
     return [
       {

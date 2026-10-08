@@ -17,8 +17,8 @@ Open http://127.0.0.1:3320. The design, proposal composer, local drafts and wall
 
 - Phantom/Solflare signed wallet login, single-use challenges and HttpOnly sessions.
 - On-chain holding checks before publishing, queueing, playing and signing a winning change.
-- Persistent proposal board and comments; picture, description and fee-wallet proposals; immutable submitted payloads.
-- Private six-digit call codes tied to the wallet/proposal, code replacement and cancellation. Callers can dial concurrently; there is no first-in-line gate.
+- Persistent proposal board and comments; a dropdown for coin name, ticker, profile picture, description, website link and fee recipient; immutable submitted payloads. Name/ticker updates change both the on-chain fields and published JSON.
+- Private four-digit call codes tied to the wallet/proposal, issued immediately after a ready holder posts. Code replacement and cancellation are supported. Codes expire after ten minutes and are never included in public board responses. Callers can dial concurrently; there is no first-in-line gate. Phone code entry requires caller ID, with rate limits across redials.
 - Twilio webhook signature verification and authenticated bidirectional Media Streams; Deepgram voice synthesis and transcription.
 - Eight seconds of answer audio after the playback mark, A/B/C/D or keypad 1–4, first valid answer wins. Transcription latency never extends the window.
 - Global question retirement and randomized option order; sourced question imports and an automatic refill worker. No stock means no new attempt.

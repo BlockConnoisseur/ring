@@ -18,6 +18,8 @@ import { holdsRing, requireHolding, validWallet } from "@/lib/solana";
 import { acceptingCalls, canPost, origin, requireLive } from "@/lib/config";
 import { getAsset, publishImage } from "@/lib/assets";
 import { callCapacity } from "@/lib/capacity";
+import { proposalKinds } from "@/lib/types";
+import { validateProposalValue } from "@/lib/proposal-value";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 const json = (body: unknown, status = 200) =>
@@ -33,7 +35,7 @@ async function requireSession(req: NextRequest) {
   return wallet;
 }
 const proposalSchema = z.object({
-  kind: z.enum(["picture", "description", "fees"]),
+  kind: z.enum(proposalKinds),
   title: z.string().trim().min(5).max(100),
   username: z.string().regex(/^[A-Za-z0-9_]{3,24}$/),
   value: z.string().max(500),
@@ -232,15 +234,14 @@ export async function POST(
         );
       await requireHolding(wallet);
       const value = proposalSchema.parse(body);
+      value.value = validateProposalValue(value.kind, value.value);
       if (value.kind === "fees" && !validWallet(value.value))
         throw new Error("Enter a valid Solana recipient wallet.");
       if (value.kind === "picture") checkImage(value.image || "");
       if (value.kind === "picture")
         value.image = await publishImage(value.image!);
-      if (value.kind === "description" && value.value.trim().length < 5)
-        throw new Error("Write a description of at least five characters.");
       const id = randomUUID();
-      await transact((s) => {
+      const call = await transact((s) => {
         bindMint(s, process.env.RING_TOKEN_MINT!);
         rateLimit(s, `proposal:${wallet}`, Date.now(), 5, 3600_000);
         if (
@@ -260,8 +261,28 @@ export async function POST(
           createdAt: Date.now(),
           comments: 0,
         });
+        // A successful post is retained even when the wallet cannot call yet.
+        expireQueue(s);
+        if (
+          acceptingCalls(s) &&
+          (s.wallets[wallet].cooldownUntil || 0) <= Date.now() &&
+          !s.games.some((g) => g.wallet === wallet && g.status === "playing") &&
+          !s.queue.some(
+            (q) =>
+              q.wallet === wallet &&
+              q.status !== "done" &&
+              q.expiresAt > Date.now(),
+          )
+        ) {
+          try {
+            return enqueue(s, wallet, id);
+          } catch {
+            /* Code pool full; join later. */
+          }
+        }
+        return null;
       });
-      return json({ id }, 201);
+      return json({ id, call }, 201);
     }
     if (path === "queue") {
       requireLive();

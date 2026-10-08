@@ -4,6 +4,7 @@ import type { FeeSource } from "./meteora";
 import { callCapacity } from "./capacity";
 export const COOLDOWN_MS = 600_000;
 export const ANSWER_MS = 8_000;
+export const CALL_CODE_DIGITS = 4;
 export const targetFor = (wins: number) => 3 + wins * 2;
 export type Question = {
   id: string;
@@ -126,6 +127,24 @@ export function rateLimit(
   for (const [k, v] of Object.entries(s.limits))
     if (v.expiresAt <= now) delete s.limits[k];
 }
+function newCallCode(s: Store, now: number, previous?: string) {
+  const reserved = new Set(
+    s.queue
+      .filter(
+        (q) =>
+          q.status === "playing" ||
+          (q.status === "waiting" && q.expiresAt > now),
+      )
+      .map((q) => q.codeHash),
+  );
+  if (previous) reserved.add(previous);
+  const start = randomInt(9000);
+  for (let offset = 0; offset < 9000; offset++) {
+    const code = String(1000 + ((start + offset) % 9000));
+    if (!reserved.has(hash(code))) return code;
+  }
+  throw new Error("All private call codes are reserved. Try again shortly.");
+}
 export function enqueue(
   s: Store,
   wallet: string,
@@ -145,14 +164,7 @@ export function enqueue(
     )
   )
     throw new Error("This wallet is already in the queue.");
-  const code = String(randomInt(100000, 1000000));
-  if (
-    s.queue.some(
-      (q) =>
-        q.codeHash === hash(code) && q.status !== "done" && q.expiresAt > now,
-    )
-  )
-    return enqueue(s, wallet, proposalId, now);
+  const code = newCallCode(s, now);
   const q: QueueEntry = {
     wallet,
     proposalId,
@@ -237,14 +249,7 @@ export function refreshCode(s: Store, wallet: string, now = Date.now()) {
     (q) => q.wallet === wallet && q.status === "waiting" && q.expiresAt > now,
   );
   if (!q) throw new Error("No waiting proposal. Join the queue first.");
-  let code: string;
-  do {
-    code = String(randomInt(100000, 1000000));
-  } while (
-    s.queue.some(
-      (other) => other.status !== "done" && other.codeHash === hash(code),
-    )
-  );
+  const code = newCallCode(s, now, q.codeHash);
   q.codeHash = hash(code);
   return {
     code,

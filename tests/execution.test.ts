@@ -12,6 +12,7 @@ import {
   type TransactionTransport,
 } from "../src/lib/operations";
 import { nextMetadata } from "../src/lib/token-metadata";
+import { validateProposalValue } from "../src/lib/proposal-value";
 import { publishAsset, getAsset } from "../src/lib/assets";
 import { applyExecution, feeMemo } from "../src/lib/executor";
 import { emptyStore, type Game } from "../src/lib/game";
@@ -206,5 +207,39 @@ test("fee recipient changes exactly once after a verified win and finalized oper
   assert.equal(
     memo.instructions[0].programId.toBase58(),
     "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr",
+  );
+});
+
+test("name, ticker and website updates preserve other metadata and reject invalid values", () => {
+  const original = {
+    name: "Ring",
+    symbol: "RING",
+    external_url: "https://ringai.dev",
+    image: "ipfs://image",
+    attributes: [{ trait_type: "generation", value: 1 }],
+  };
+  for (const [kind, value, key] of [
+    ["name", "New Ring", "name"],
+    ["symbol", "DIAL", "symbol"],
+    ["website", "https://example.com/project", "external_url"],
+  ] as const) {
+    assert.deepEqual(nextMetadata(original, { ...proposal, kind, value }), {
+      ...original,
+      [key]: value,
+    });
+  }
+  assert.throws(() => validateProposalValue("name", "😀".repeat(9)), /32/);
+  assert.throws(
+    () => validateProposalValue("name", "bad\u0000name"),
+    /control/,
+  );
+  assert.throws(() => validateProposalValue("symbol", "$RING"), /ticker/);
+  assert.throws(
+    () => validateProposalValue("website", "javascript:alert(1)"),
+    /HTTPS/,
+  );
+  assert.throws(
+    () => validateProposalValue("website", "https://user:pass@example.com"),
+    /credentials/,
   );
 });

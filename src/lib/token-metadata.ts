@@ -27,6 +27,7 @@ import { toWeb3JsInstruction } from "@metaplex-foundation/umi-web3js-adapters";
 import { getAsset, publishAsset, publishImage } from "./assets";
 import { ringMint } from "./chain";
 import type { Proposal } from "./types";
+import { validateProposalValue } from "./proposal-value";
 
 export function nextMetadata(
   previous: Record<string, unknown>,
@@ -34,8 +35,12 @@ export function nextMetadata(
   image?: string,
   imageMime?: string,
 ) {
+  const value = validateProposalValue(proposal.kind, proposal.value);
+  if (proposal.kind === "name" || proposal.kind === "symbol")
+    return { ...previous, [proposal.kind]: value };
+  if (proposal.kind === "website") return { ...previous, external_url: value };
   if (proposal.kind === "description")
-    return { ...previous, description: proposal.value.trim() };
+    return { ...previous, description: value };
   if (proposal.kind !== "picture" || !image)
     throw new Error("Unsupported metadata action.");
   const properties =
@@ -123,6 +128,7 @@ export async function metadataTransaction(
   signer: { publicKey: PublicKey },
   proposal: Proposal,
 ) {
+  const value = validateProposalValue(proposal.kind, proposal.value);
   const mint = ringMint();
   const account = await connection.getAccountInfo(mint, "finalized");
   if (!account) throw new Error("Ring mint does not exist.");
@@ -160,10 +166,15 @@ export async function metadataTransaction(
       throw new Error("Ring signer is not the metadata authority.");
     const uri = await publish(metadata.uri);
     const transaction = new Transaction();
-    const growth = Math.max(
-      0,
-      Buffer.byteLength(uri) - Buffer.byteLength(metadata.uri),
-    );
+    const growth =
+      Math.max(0, Buffer.byteLength(uri) - Buffer.byteLength(metadata.uri)) +
+      (proposal.kind === "name" || proposal.kind === "symbol"
+        ? Math.max(
+            0,
+            Buffer.byteLength(value) -
+              Buffer.byteLength(metadata[proposal.kind]),
+          )
+        : 0);
     const rent = await connection.getMinimumBalanceForRentExemption(
       account.data.length + growth,
     );
@@ -173,6 +184,16 @@ export async function metadataTransaction(
           fromPubkey: signer.publicKey,
           toPubkey: mint,
           lamports: rent - account.lamports,
+        }),
+      );
+    if (proposal.kind === "name" || proposal.kind === "symbol")
+      transaction.add(
+        createUpdateFieldInstruction({
+          programId: TOKEN_2022_PROGRAM_ID,
+          metadata: mint,
+          updateAuthority: signer.publicKey,
+          field: proposal.kind === "name" ? "Name" : "Symbol",
+          value,
         }),
       );
     transaction.add(
@@ -205,8 +226,8 @@ export async function metadataTransaction(
     mint: publicKey(mint.toBase58()),
     authority: identity,
     data: {
-      name: metadata.name,
-      symbol: metadata.symbol,
+      name: proposal.kind === "name" ? value : metadata.name,
+      symbol: proposal.kind === "symbol" ? value : metadata.symbol,
       uri,
       sellerFeeBasisPoints: metadata.sellerFeeBasisPoints,
       creators: metadata.creators,

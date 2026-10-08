@@ -6,10 +6,7 @@ export function liveReady() {
     Boolean(
       process.env.RING_TOKEN_MINT &&
       process.env.RING_PHONE_NUMBER &&
-      process.env.TWILIO_AUTH_TOKEN &&
-      process.env.TWILIO_ACCOUNT_SID &&
       process.env.VOICE_PUBLIC_URL &&
-      process.env.DEEPGRAM_API_KEY &&
       signerSelected() &&
       process.env.RING_DBC_POOL &&
       process.env.RING_INITIAL_FEE_RECIPIENT &&
