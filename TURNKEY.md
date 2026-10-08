@@ -30,6 +30,10 @@ Use `RING_SIGNER=keypair` and `RING_AUTHORITY_KEYPAIR=/absolute/path/keypair.jso
 
 ## Verification
 
-The tests exercise the real Turnkey Solana serializer against a simulated completed signing response, verify Ed25519 signatures, reject altered messages and invalid signatures, propagate policy rejection, and confirm local-signer compatibility. No live Turnkey wallet, policy or signature has been created without account credentials.
+On October 8, 2026, the Ring Authority wallet and its Solana account were created. A separate non-root Ring executor user and API key are configured in the ignored local environment. Live `getWhoami` authentication and `getWalletAccounts` succeeded, and the returned account matches `TURNKEY_SIGNER_ADDRESS`. The Solana private key was not exported.
+
+Signing policies remain unconfigured because the Ring mint and Meteora pool do not exist yet. API authentication does not establish permission to sign. The executor is not deployed and no live signature or token transaction has been produced. Complete the address-specific policy and on-chain authority checks before launch.
+
+The tests exercise the real Turnkey Solana serializer against a simulated completed signing response, verify Ed25519 signatures, reject altered messages and invalid signatures, propagate policy rejection, and confirm local-signer compatibility.
 
 References: [Solana SDK](https://docs.turnkey.com/sdks/web3/solana), [official example](https://github.com/tkhq/sdk/tree/main/examples/chain-integrations/with-solana), [Solana policies](https://docs.turnkey.com/features/policies/examples/solana).

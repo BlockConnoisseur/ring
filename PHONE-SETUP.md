@@ -1,6 +1,14 @@
 # Get Ring's phone number and voice
 
-The phone integration is implemented; account credentials and a public voice-worker host are needed to activate it. A token does not have to exist to open these provider accounts. The game remains in prelaunch until the token and executor are configured.
+As of October 8, 2026, Ring's existing number **+1 (443) 348-9296** is connected to the public voice worker at `https://ring-voice.onrender.com`. Twilio's incoming callback is POST `/incoming`, and its completion callback is POST `/status`; both were read back from Twilio after configuration. Signed HTTPS checks return 200 and the prelaunch greeting, while unsigned requests return 403. A real handset call is still required.
+
+The service runs on one Render Starter instance in Virginia ($7/month base hosting, plus provider usage). Deepgram credentials are configured, and live synthesis/transcription were tested successfully. `RING_LIVE=false`: the number plays a prelaunch message until the token, executor, hosting capacity and provider limits are ready. The website and executor are not deployed by this voice service.
+
+The Twilio account has an individual compliance profile. Its business-only SHAKEN/STIR/branding setup cannot be completed without an eligible business profile; these outbound identity features are separate from routing incoming Ring calls. The account's 60–100 simultaneous-call allowance is **not verified**. Some upgraded accounts retain limits; obtain account-specific confirmation from Twilio before launch. See [Twilio concurrency limits](https://www.twilio.com/docs/api/errors/10004).
+
+## Recreating the integration
+
+A token does not have to exist to open these provider accounts. Keep the game in prelaunch until the token and executor are configured.
 
 1. Create an account at [Twilio](https://www.twilio.com/try-twilio). Complete the account checks and select Programmable Voice. In the console, open **Phone Numbers → Manage → Buy a number** and choose a number with **Voice** capability. Review the displayed monthly and usage charges before purchasing. A physical phone or SIM for Ring is not required.
 2. Save the number in international format (`+1…` for the US), the Account SID (`AC…`) and Auth Token. Ring uses the auth token to verify incoming Twilio webhook signatures. Trial accounts have restrictions; complete Twilio's upgrade requirements before inviting public callers.
@@ -23,5 +31,7 @@ npm run phone:configure -- --apply
 ```
 
 This configures the existing number; it does not buy one. Incoming calls go to POST `/incoming`, completion events to POST `/status`, and bidirectional audio uses `/stream`. Test with your own phone before opening the public queue. Do not set `RING_LIVE=true` until the token, executor and provider checks pass.
+
+The Render service has automatic deployment disabled. The voice worker owns a singleton database lease: a replacement cannot start while the existing worker keeps renewing it. Future deployments need a controlled maintenance window that stops the previous worker and allows its lease to expire. Do not enable overlapping replicas or rely on an ordinary rolling deployment to take over that lease.
 
 References: [Twilio phone-number setup](https://www.twilio.com/docs/voice/tutorials/how-to-make-outbound-phone-calls), [trial limitations](https://help.twilio.com/hc/en-us/articles/360036052753-Twilio-Free-Trial-Limitations), [Deepgram API key](https://developers.deepgram.com/guides/fundamentals/make-your-first-api-request).
