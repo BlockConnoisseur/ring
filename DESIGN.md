@@ -12,7 +12,7 @@ These are observations, not a reliable detector of whether a site used AI. No si
 
 Choices made for Ring:
 
-- A flush header and asymmetrical hero, rather than a floating pill navigation or centered SaaS stack.
+- A floating capsule header, explicitly requested by the owner, and an asymmetrical telephone-poster hero. The header stays opaque, with clear active-page links and a theme control.
 - A real subject: the phone. No coin render, chrome orb, neon grid, aurora, glass card, or sparkle icon.
 - The supplied Ring brand palette: white canvas (#FFFFFF), Ink (#161616), Black (#0A0A0A), Ring Red (#E10600), Signal Red (#FF3B30), and Dial Tone Deep (#8F0A06). Ring Red leads actions; Signal Red stays legible on dark surfaces; Dial Tone Deep supplies light-surface focus and pressed states.
 - Locally bundled DM Sans and Space Mono. Concrete type sizes and restrained weights; no network font dependency.

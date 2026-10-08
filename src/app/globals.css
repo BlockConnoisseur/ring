@@ -1,5 +1,7 @@
 :root {
+  color-scheme: light;
   --canvas: #fff;
+  --accent: #e10600;
   --surface: #fff;
   --ink: #161616;
   --black: #0a0a0a;
@@ -48,7 +50,7 @@ button {
 }
 input,
 textarea {
-  caret-color: var(--brand);
+  caret-color: var(--accent);
 }
 input::placeholder,
 textarea::placeholder {
@@ -132,10 +134,10 @@ button {
   letter-spacing: 0.14em;
 }
 .brand-lettering > span {
-  color: var(--brand);
+  color: var(--accent);
 }
 .brand-dot {
-  color: var(--brand);
+  color: var(--accent);
 }
 .site-header nav {
   display: flex;
@@ -203,7 +205,7 @@ h1 {
   margin: 0 0 31px;
 }
 h1 span {
-  color: var(--brand);
+  color: var(--accent);
 }
 .hero-description {
   font-size: 19px;
@@ -341,7 +343,7 @@ h1 span {
 .section-heading .eyebrow {
   margin-bottom: 15px;
 }
-.section-heading h2 {
+.section-heading h1 {
   font-weight: 550;
   letter-spacing: -3px;
   font-size: 53px;
@@ -389,7 +391,7 @@ h1 span {
 }
 .board-filters button.active {
   color: var(--ink);
-  border-color: var(--brand);
+  border-color: var(--accent);
 }
 .board-filters > span {
   font: 10px var(--font-mono);
@@ -449,7 +451,7 @@ h1 span {
   gap: 20px;
 }
 .starter-row:hover strong {
-  color: var(--brand);
+  color: var(--accent);
 }
 .starter-number {
   font: 10px var(--font-mono);
@@ -499,7 +501,7 @@ h1 span {
   font-size: 10px;
 }
 .slip-top svg {
-  color: var(--brand);
+  color: var(--accent);
 }
 .line-status {
   display: flex;
@@ -579,14 +581,14 @@ h1 span {
   color: #c7c7c7;
   margin-bottom: 29px;
 }
-.rules-section h2 {
+.rules-section h1 {
   font-size: clamp(38px, 4vw, 58px);
   font-weight: 500;
   line-height: 1.06;
   letter-spacing: -2.4px;
   margin: 0 0 24px;
 }
-.rules-section h2 span {
+.rules-section h1 span {
   color: var(--signal);
 }
 .rules-section p {
@@ -664,11 +666,11 @@ h1 span {
 .last-call > button svg {
   width: 65px;
   height: 65px;
-  color: var(--brand);
+  color: var(--accent);
   stroke-width: 1;
 }
 .last-call > button:hover {
-  color: var(--brand);
+  color: var(--accent);
 }
 .site-footer {
   display: flex;
@@ -747,7 +749,7 @@ h1 span {
   align-items: center;
 }
 .draft-row {
-  background: #f2f2f2;
+  background: var(--surface);
   width: 100%;
   display: flex;
   justify-content: space-between;
@@ -865,7 +867,7 @@ h1 span {
   text-align: left;
 }
 .wallet-options button:hover strong {
-  color: var(--brand);
+  color: var(--accent);
 }
 .wallet-options strong {
   font-size: 17px;
@@ -1025,7 +1027,7 @@ textarea {
 }
 .call-checklist > div > span {
   font: 11px var(--font-mono);
-  color: var(--brand);
+  color: var(--accent);
 }
 .call-checklist p {
   margin: 0;
@@ -1066,7 +1068,7 @@ textarea {
 }
 .proposal-value {
   padding: 20px;
-  background: #f2f2f2;
+  background: var(--surface);
   font-size: 13px;
   line-height: 1.7;
   overflow-wrap: anywhere;
@@ -1133,7 +1135,7 @@ textarea {
   .rules-grid {
     gap: 45px;
   }
-  .section-heading h2 {
+  .section-heading h1 {
     font-size: 46px;
   }
   .empty-state .text-button {
@@ -1250,7 +1252,7 @@ textarea {
   .section-heading {
     align-items: flex-start;
   }
-  .section-heading h2 {
+  .section-heading h1 {
     font-size: 42px;
   }
   .section-heading .eyebrow {
@@ -1268,7 +1270,7 @@ textarea {
   .rules-section {
     padding-block: 59px;
   }
-  .rules-section h2 {
+  .rules-section h1 {
     font-size: 47px;
   }
   .rules-section p {
@@ -1394,7 +1396,7 @@ textarea {
     display: block;
     margin-bottom: 27px;
   }
-  .section-heading h2 {
+  .section-heading h1 {
     font-size: 39px;
     letter-spacing: -2px;
   }
@@ -1433,7 +1435,7 @@ textarea {
   .starter-heading span {
     font-size: 9px;
   }
-  .rules-section h2 {
+  .rules-section h1 {
     font-size: 43px;
     letter-spacing: -2px;
   }
@@ -1596,5 +1598,420 @@ textarea {
   .phone-object:hover,
   .picked-up .phone-object {
     transform: rotate(7deg);
+  }
+}
+
+/* Two deliberate themes; the phone, actions and operational states share tokens. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --canvas: #0a0a0a;
+  --surface: #1b1b1b;
+  --ink: #f5f5f5;
+  --muted: #b4b4b4;
+  --line: #363636;
+  --focus: #ff3b30;
+  --accent: #ff3b30;
+}
+.masthead {
+  position: sticky;
+  top: 18px;
+  z-index: 40;
+  width: min(1180px, calc(100% - 48px));
+  margin: 22px auto 0;
+  background: #161616;
+  color: #fff;
+  border: 1px solid #414141;
+  border-radius: 999px;
+  box-shadow: 0 10px 30px rgb(0 0 0 / 0.16);
+  --focus: var(--signal);
+}
+.site-header.wrap {
+  width: 100%;
+  height: 76px;
+  padding: 0 26px;
+  gap: 25px;
+}
+.site-header .brand-lockup img {
+  width: 36px;
+  height: 36px;
+}
+.site-header .brand-lettering {
+  font-size: 25px;
+}
+.site-header nav {
+  gap: 24px;
+}
+.site-header nav a {
+  color: #bcbcbc;
+  white-space: nowrap;
+}
+.site-header nav a[aria-current="page"] {
+  color: #fff;
+  border-bottom-color: var(--signal);
+}
+.site-header .wallet-button {
+  border-radius: 999px;
+  padding: 12px 17px;
+}
+.theme-toggle {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: #292929;
+  color: #fff;
+}
+.theme-toggle:hover {
+  background: #414141;
+}
+.hero {
+  padding-top: 60px;
+}
+.phone-scene {
+  isolation: isolate;
+}
+.phone-scene::before {
+  content: "";
+  position: absolute;
+  width: 82%;
+  aspect-ratio: 1;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  top: 16%;
+  left: 9%;
+  z-index: -1;
+}
+.phone-note {
+  color: var(--muted);
+}
+.hero-footnote,
+.phone-caption,
+.eyebrow {
+  font-size: 11px;
+}
+.home-dispatch {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 100px;
+  padding-block: 95px;
+}
+.dispatch-heading h2 {
+  margin: 0 0 22px;
+  font-size: clamp(38px, 4vw, 60px);
+  line-height: 1.04;
+  letter-spacing: -0.04em;
+  font-weight: 550;
+}
+.dispatch-heading p {
+  max-width: 42ch;
+  font-size: 15px;
+  line-height: 1.7;
+  color: var(--muted);
+  margin-bottom: 26px;
+}
+.dispatch-options {
+  align-self: center;
+}
+.dispatch-options button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  width: 100%;
+  padding: 28px 0;
+  background: transparent;
+  border-bottom: 1px solid var(--line);
+  font-size: clamp(23px, 2.5vw, 35px);
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  text-align: left;
+}
+.dispatch-options button:first-child {
+  border-top: 1px solid var(--line);
+}
+.dispatch-options button:hover {
+  color: var(--accent);
+}
+.dispatch-options svg {
+  color: var(--accent);
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+}
+.hotline-banner {
+  background: var(--brand);
+  color: white;
+  padding-block: 52px;
+  --focus: #fff;
+}
+.hotline-banner > .wrap {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 30px;
+}
+.hotline-label {
+  font-size: 14px;
+}
+.hotline-number {
+  white-space: nowrap;
+  overflow-wrap: normal;
+  word-break: normal;
+  font-variant-numeric: tabular-nums;
+}
+.hotline-banner .hotline-number {
+  margin: 14px 0 0;
+  font-size: clamp(28px, 5.4vw, 76px);
+  font-weight: 600;
+  letter-spacing: -0.04em;
+  line-height: 1.1;
+}
+.hotline-action {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  padding: 16px 0;
+  background: transparent;
+  border-bottom: 1px solid #fff;
+  white-space: nowrap;
+  font-size: 14px;
+}
+.hotline-action:hover {
+  border-bottom-width: 3px;
+}
+.call-slip {
+  background: #161616;
+  color: #fff;
+  border: 1px solid #414141;
+}
+.call-slip::after {
+  display: none;
+}
+.call-slip h3.hotline-number {
+  font-size: clamp(22px, 2.4vw, 30px);
+  letter-spacing: -0.045em;
+}
+.slip-button {
+  background: #fff;
+  color: #161616;
+}
+.rules-section {
+  background: var(--canvas);
+  color: var(--ink);
+}
+.rules-section p,
+.rules-section .eyebrow,
+.progression-caption {
+  color: var(--muted);
+}
+.rules-section h1 {
+  font-size: clamp(50px, 5.3vw, 78px);
+}
+.page-rules .rules-section {
+  padding-top: 80px;
+}
+.rules-list {
+  border-top: 1px solid var(--line);
+}
+.rule-item {
+  border-bottom: 1px solid var(--line);
+  padding-block: 26px;
+}
+.rule-item p {
+  font-size: 14px;
+  line-height: 1.8;
+}
+.rule-item > span {
+  color: var(--accent);
+  font-size: 13px;
+}
+.page-switchboard .section-heading h1 {
+  font-size: clamp(48px, 6vw, 84px);
+  letter-spacing: -0.04em;
+  margin: 0;
+}
+.page-intro {
+  font-size: 16px;
+  color: var(--muted);
+  line-height: 1.6;
+  max-width: 48ch;
+}
+.page-switchboard .switchboard {
+  padding-top: 70px;
+  min-height: 70vh;
+}
+.page-switchboard .board-layout {
+  gap: 55px;
+  grid-template-columns: minmax(0, 1fr) 330px;
+}
+.board-filters {
+  gap: 0 25px;
+}
+.board-filters button {
+  min-height: 44px;
+  padding: 14px 0;
+}
+.board-filters > span {
+  align-self: center;
+}
+.empty-state {
+  padding-block: 52px;
+}
+.panel-content {
+  border: 1px solid var(--line);
+}
+.panel input,
+.panel select,
+.panel textarea,
+.input-prefix {
+  border-color: var(--line);
+}
+.provider-mark,
+.toast {
+  background: #161616;
+  color: #fff;
+}
+.kind-picker button.active {
+  background: var(--ink);
+  color: var(--canvas);
+}
+:root[data-theme="dark"] .panel .form-error {
+  background: #301413;
+  color: #ffb5b0;
+}
+:root[data-theme="dark"] .proposal-disclosure {
+  border-color: var(--signal);
+}
+.primary-button[href^="tel:"] {
+  white-space: nowrap;
+  font-size: 14px;
+  gap: 12px;
+}
+@media (max-width: 1000px) {
+  .home-dispatch {
+    gap: 45px;
+  }
+  .site-header.wrap {
+    gap: 15px;
+    padding-inline: 20px;
+  }
+  .site-header nav {
+    gap: 16px;
+  }
+}
+@media (max-width: 760px) {
+  .masthead {
+    top: 10px;
+    width: calc(100% - 24px);
+    margin-top: 12px;
+    border-radius: 32px;
+  }
+  .site-header.wrap {
+    flex-wrap: wrap;
+    height: auto;
+    padding: 12px 16px 7px;
+    gap: 8px 12px;
+  }
+  .site-header .brand-lettering {
+    font-size: 21px;
+  }
+  .site-header .brand-lockup img {
+    width: 30px;
+    height: 30px;
+  }
+  .site-header nav {
+    display: flex;
+    order: 4;
+    justify-content: center;
+    width: 100%;
+    margin: 0;
+    gap: 28px;
+  }
+  .site-header nav a {
+    font-size: 12px;
+    padding: 8px 0;
+  }
+  .theme-toggle {
+    width: 36px;
+    height: 36px;
+    margin-left: auto;
+  }
+  .site-header .wallet-button {
+    margin: 0;
+    font-size: 11px;
+    padding: 10px 12px;
+    gap: 0;
+  }
+  .wallet-button > svg {
+    display: none;
+  }
+  .home-dispatch {
+    grid-template-columns: 1fr;
+    gap: 28px;
+    padding-block: 54px;
+  }
+  .dispatch-options button {
+    font-size: 28px;
+    padding-block: 24px;
+  }
+  .hotline-banner {
+    padding-block: 36px;
+  }
+  .hotline-banner > .wrap {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 24px;
+  }
+  .hotline-label {
+    font-size: 12px;
+  }
+  .hotline-banner .hotline-number {
+    font-size: clamp(28px, 7.5vw, 52px);
+  }
+  .page-switchboard .board-layout {
+    grid-template-columns: 1fr;
+    gap: 32px;
+  }
+  .page-switchboard .call-slip {
+    display: block;
+  }
+  .call-slip h3.hotline-number {
+    font-size: 30px;
+  }
+  .page-switchboard .switchboard,
+  .page-rules .rules-section {
+    padding-top: 42px;
+  }
+  .page-switchboard .section-heading > .text-button {
+    padding-top: 0;
+  }
+  .rules-section h1 {
+    font-size: 52px;
+  }
+  .phone-scene::before {
+    top: 8%;
+  }
+  .hero .eyebrow {
+    font-size: 10px;
+    width: auto;
+  }
+  .hero-footnote {
+    font-size: 11px;
+  }
+}
+@media (max-width: 360px) {
+  .site-header .brand-lockup img {
+    display: none;
+  }
+  .site-header.wrap {
+    gap: 8px;
+  }
+  .call-slip {
+    padding-inline: 20px;
+  }
+  .call-slip h3.hotline-number {
+    font-size: 25px;
   }
 }

@@ -137,7 +137,23 @@ async function api<T>(path: string, data?: unknown): Promise<T> {
 }
 const short = (wallet: string) => `${wallet.slice(0, 4)}…${wallet.slice(-4)}`;
 
-export default function Ring() {
+export default function Ring({
+  view = "home",
+}: {
+  view?: "home" | "switchboard" | "rules";
+}) {
+  const [theme, setTheme] = useState("dark");
+  useEffect(() => {
+    setTheme(document.documentElement.dataset.theme || "dark");
+  }, []);
+  function toggleTheme() {
+    const next = theme === "dark" ? "light" : "dark";
+    document.documentElement.dataset.theme = next;
+    setTheme(next);
+    try {
+      localStorage.setItem("ring:theme:v1", next);
+    } catch {}
+  }
   const [state, setState] = useState(initial);
   const [loaded, setLoaded] = useState(false);
   const [networkError, setNetworkError] = useState("");
@@ -425,15 +441,54 @@ export default function Ring() {
       <a className="skip-link" href="#main">
         Skip to content
       </a>
-      <div className="brand-band">
+      <div className="masthead">
         <header className="site-header wrap">
-          <a className="wordmark" href="#" aria-label="Ring home">
+          <a className="wordmark" href="/" aria-label="Ring home">
             <BrandLogo />
           </a>
           <nav aria-label="Main navigation">
-            <a href="#switchboard">The switchboard</a>
-            <a href="#rules">The rules</a>
+            <a
+              href="/switchboard"
+              aria-current={view === "switchboard" ? "page" : undefined}
+            >
+              Switchboard
+            </a>
+            <a
+              href="/rules"
+              aria-current={view === "rules" ? "page" : undefined}
+            >
+              How to play
+            </a>
           </nav>
+          <button
+            className="theme-toggle"
+            onClick={toggleTheme}
+            aria-label={
+              theme === "dark" ? "Switch to light mode" : "Switch to dark mode"
+            }
+            title={
+              theme === "dark" ? "Switch to light mode" : "Switch to dark mode"
+            }
+          >
+            <svg
+              viewBox="0 0 24 24"
+              width="20"
+              height="20"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              aria-hidden="true"
+            >
+              {theme === "dark" ? (
+                <>
+                  <circle cx="12" cy="12" r="4" />
+                  <path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5" />
+                </>
+              ) : (
+                <path d="M20.5 14A8.5 8.5 0 0 1 10 3.5 8.5 8.5 0 1 0 20.5 14Z" />
+              )}
+            </svg>
+          </button>
           <button className="wallet-button" onClick={() => open("wallet")}>
             <svg
               className="wallet-symbol"
@@ -452,387 +507,453 @@ export default function Ring() {
           </button>
         </header>
       </div>
-      <main id="main">
-        <section className="hero wrap" aria-labelledby="hero-title">
-          <div className="hero-copy">
-            <p className="eyebrow">
-              <span className="red-dash" /> A memecoin with a phone number
-            </p>
-            <h1 id="hero-title">
-              The coin
-              <br />
-              is on
-              <br />
-              the <span>line.</span>
-            </h1>
-            <p className="hero-description">
-              Call Ring. Answer the questions.
-              <br />
-              Win the right to change the coin.
-            </p>
-            <button className="primary-button" onClick={() => compose()}>
-              Make a proposal <Arrow diagonal />
-            </button>
-            <p className="hero-footnote">
-              Hold any amount of Ring. Have your say.
-            </p>
-          </div>
-          <div className={`phone-scene ${pickedUp ? "picked-up" : ""}`}>
-            <span className="phone-note">
-              YOUR CALL.
-              <br />
-              YOUR COIN.
-            </span>
-            <button
-              className="phone-object"
-              aria-label="Pick up the red telephone"
-              onClick={() => {
-                setPickedUp(true);
-                open("call");
-              }}
-            >
-              <Image
-                src="/ring-phone.png"
-                alt="A red vintage landline with its receiver lifted off the hook"
-                width={1120}
-                height={1400}
-                priority
-                sizes="(max-width: 700px) 85vw, 48vw"
-              />
-            </button>
-            <div className="phone-caption">
-              <span className="status-dot" />
-              <span>
-                {state.live ? "The line is open" : "The line opens soon"}
-              </span>
-              <span className="caption-rule" />
-              <span>EST. 2026</span>
-            </div>
-          </div>
-        </section>
-        <div className="rule-strip wrap" aria-label="Game rules at a glance">
-          <div>
-            <strong>{String(state.required).padStart(2, "0")}</strong>
-            <span>
-              right answers
-              <br />
-              to make a change
-            </span>
-          </div>
-          <div>
-            <strong>
-              08<span>s</span>
-            </strong>
-            <span>
-              to answer
-              <br />
-              each question
-            </span>
-          </div>
-          <div>
-            <strong>
-              10<span>m</span>
-            </strong>
-            <span>
-              between attempts
-              <br />
-              per wallet
-            </span>
-          </div>
-          <a href="#rules">
-            Know the rules <Arrow diagonal />
-          </a>
-        </div>
-        <section
-          className="switchboard wrap"
-          id="switchboard"
-          aria-labelledby="board-title"
-        >
-          <div className="section-heading">
-            <div>
-              <p className="eyebrow">The community has the receiver</p>
-              <h2 id="board-title">
-                The switchboard<span className="brand-dot">.</span>
-              </h2>
-            </div>
-            <button className="text-button" onClick={() => compose()}>
-              Propose a change <span className="plus">+</span>
-            </button>
-          </div>
-          <div className="board-layout">
-            <div className="board-main">
-              <div className="board-filters" aria-label="Filter proposals">
-                {[["all", "All proposals"], ...Object.entries(labels)].map(
-                  ([key, label]) => (
-                    <button
-                      key={key}
-                      aria-pressed={filter === key}
-                      className={filter === key ? "active" : ""}
-                      onClick={() => setFilter(key)}
-                    >
-                      {label}
-                    </button>
-                  ),
-                )}
-                <span>{filtered.length.toString().padStart(2, "0")}</span>
+      <main id="main" className={`page-${view}`}>
+        {view === "home" && (
+          <>
+            <section className="hero wrap" aria-labelledby="hero-title">
+              <div className="hero-copy">
+                <p className="eyebrow">
+                  <span className="red-dash" /> A memecoin with a phone number
+                </p>
+                <h1 id="hero-title">
+                  The coin
+                  <br />
+                  is on
+                  <br />
+                  the <span>line.</span>
+                </h1>
+                <p className="hero-description">
+                  Call Ring. Answer the questions.
+                  <br />
+                  Win the right to change the coin.
+                </p>
+                <button className="primary-button" onClick={() => compose()}>
+                  Make a proposal <Arrow diagonal />
+                </button>
+                <p className="hero-footnote">
+                  Hold any amount of Ring. Have your say.
+                </p>
               </div>
-              {networkError ? (
-                <div className="empty-state" role="status">
-                  <p>{networkError}</p>
-                  <button
-                    className="text-button"
-                    onClick={() => void refresh()}
-                  >
-                    Try again <Arrow />
-                  </button>
-                </div>
-              ) : !loaded ? (
-                <div className="empty-state" role="status">
-                  Connecting to the switchboard…
-                </div>
-              ) : filtered.length ? (
-                <div className="proposal-list">
-                  {filtered.map((p) => (
-                    <button
-                      className="proposal-row"
-                      key={p.id}
-                      onClick={() => void detail(p)}
-                    >
-                      <span className="proposal-type">
-                        {p.kind === "picture"
-                          ? "IMG"
-                          : p.kind === "fees"
-                            ? "SOL"
-                            : "TXT"}
-                      </span>
-                      <span className="proposal-row-copy">
-                        <span className="proposal-meta">
-                          {labels[p.kind]} <span>by @{p.username}</span>
-                        </span>
-                        <strong>{p.title}</strong>
-                        <span className="proposal-note">
-                          {p.note || p.value}
-                        </span>
-                      </span>
-                      <span className="proposal-status">
-                        {p.status.replaceAll("_", " ")}
-                        <Arrow diagonal />
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <div className="empty-state">
-                  <span className="empty-number">
-                    ({" "}
-                    {filter === "all"
-                      ? "YOUR IDEA GOES HERE"
-                      : `NO ${filter.toUpperCase()} PROPOSALS YET`}{" "}
-                    )
-                  </span>
-                  <h3>
-                    Nothing on the line.
-                    <br />
-                    Yet.
-                  </h3>
-                  <p>
-                    The first proposal could be yours.
-                    <br />
-                    Pick something worth calling about.
-                  </p>
-                  <button
-                    className="text-button"
-                    onClick={() =>
-                      compose(
-                        filter === "all" ? undefined : (filter as ProposalKind),
-                      )
-                    }
-                  >
-                    Start a proposal <Arrow />
-                  </button>
-                </div>
-              )}
-              {savedDraft && (
-                <div>
-                  <button className="draft-row" onClick={() => compose()}>
-                    <span>
-                      <small>PRIVATE DRAFT · THIS DEVICE</small>
-                      <strong>
-                        {savedDraft.title || "Your unfinished proposal"}
-                      </strong>
-                    </span>
-                    <span>
-                      Continue <Arrow />
-                    </span>
-                  </button>
-                  <button
-                    className="inline-link"
-                    onClick={() => {
-                      try {
-                        localStorage.removeItem("ring:draft:v1");
-                        setSavedDraft(null);
-                        setNotice("Private draft discarded.");
-                      } catch {
-                        setNotice("Browser storage is unavailable.");
-                      }
-                    }}
-                  >
-                    Discard private draft
-                  </button>
-                </div>
-              )}
-              <div className="starter-heading">
-                What can you change? <span>Pick a starting point</span>
-              </div>
-              {starters.map((item) => (
+              <div className={`phone-scene ${pickedUp ? "picked-up" : ""}`}>
+                <span className="phone-note">
+                  YOUR CALL.
+                  <br />
+                  YOUR COIN.
+                </span>
                 <button
-                  className="starter-row"
-                  key={item.kind}
-                  onClick={() => compose(item.kind)}
+                  className="phone-object"
+                  aria-label="Pick up the red telephone"
+                  onClick={() => {
+                    setPickedUp(true);
+                    open("call");
+                  }}
                 >
-                  <span className="starter-number">{item.number}</span>
+                  <Image
+                    src="/ring-phone.png"
+                    alt="A red vintage landline with its receiver lifted off the hook"
+                    width={1120}
+                    height={1400}
+                    priority
+                    sizes="(max-width: 700px) 85vw, 48vw"
+                  />
+                </button>
+                <div className="phone-caption">
+                  <span className="status-dot" />
                   <span>
-                    <strong>{item.title}</strong>
-                    <small>{item.text}</small>
+                    {state.live ? "The line is open" : "The line opens soon"}
                   </span>
+                  <span className="caption-rule" />
+                  <span>EST. 2026</span>
+                </div>
+              </div>
+            </section>
+            <div
+              className="rule-strip wrap"
+              aria-label="Game rules at a glance"
+            >
+              <div>
+                <strong>{String(state.required).padStart(2, "0")}</strong>
+                <span>
+                  right answers
+                  <br />
+                  to make a change
+                </span>
+              </div>
+              <div>
+                <strong>
+                  08<span>s</span>
+                </strong>
+                <span>
+                  to answer
+                  <br />
+                  each question
+                </span>
+              </div>
+              <div>
+                <strong>
+                  10<span>m</span>
+                </strong>
+                <span>
+                  between attempts
+                  <br />
+                  per wallet
+                </span>
+              </div>
+              <a href="/rules">
+                Know the rules <Arrow diagonal />
+              </a>
+            </div>
+            <section className="home-dispatch wrap">
+              <div className="dispatch-heading">
+                <h2>
+                  The next version
+                  <br />
+                  could be yours.
+                </h2>
+                <p>
+                  A new face. A new name. A different place for the fees. Put
+                  your idea on the board, then earn it on the phone.
+                </p>
+                <a className="text-button" href="/switchboard">
+                  Explore the switchboard <Arrow diagonal />
+                </a>
+              </div>
+              <div className="dispatch-options">
+                {(["name", "picture", "fees"] as ProposalKind[]).map((kind) => (
+                  <button key={kind} onClick={() => compose(kind)}>
+                    <span>
+                      {kind === "name"
+                        ? "Name the coin."
+                        : kind === "picture"
+                          ? "Change the face."
+                          : "Direct the fees."}
+                    </span>
+                    <Arrow diagonal />
+                  </button>
+                ))}
+              </div>
+            </section>
+            <section className="hotline-banner">
+              <div className="wrap">
+                <div>
+                  <span className="hotline-label">
+                    The number is real. The change is yours to earn.
+                  </span>
+                  <h2 className="hotline-number">
+                    {state.phone || "+14433489296"}
+                  </h2>
+                </div>
+                <button onClick={() => open("call")} className="hotline-action">
+                  {state.live ? "Before you call" : "The line opens soon"}
                   <Arrow diagonal />
                 </button>
-              ))}
-            </div>
-            <aside className="call-slip">
-              <div className="slip-top">
-                <span className="eyebrow">Ring hotline</span>
-                <PhoneIcon />
               </div>
-              <span className="line-status">
-                <span className="status-dot" />
-                {state.live ? "Accepting calls" : "Not taking calls yet"}
-              </span>
-              <h3>
-                {state.phone ? (
-                  state.phone
-                ) : (
-                  <>
-                    Good things
-                    <br />
-                    are on
-                    <br />
-                    the line.
-                  </>
-                )}
-              </h3>
-              <p>
-                Submit your change first.
-                <br />
-                Then pick up the phone.
-              </p>
-              <div className="slip-divider" />
-              <dl>
-                <div>
-                  <dt>Current target</dt>
-                  <dd>{state.required} in a row</dd>
-                </div>
-                <div>
-                  <dt>Next target after a win</dt>
-                  <dd>{state.required + 2} in a row</dd>
-                </div>
-                <div>
-                  <dt>Your next attempt</dt>
-                  <dd>
-                    {cooldown
-                      ? countdown
-                      : state.session
-                        ? "Ready"
-                        : "Connect wallet"}
-                  </dd>
-                </div>
-              </dl>
-              <button className="slip-button" onClick={() => open("call")}>
-                {state.live ? "Get ready to call" : "Before you call"}
-                <Arrow diagonal />
+            </section>
+          </>
+        )}
+        {view === "switchboard" && (
+          <section
+            className="switchboard wrap"
+            id="switchboard"
+            aria-labelledby="board-title"
+          >
+            <div className="section-heading">
+              <div>
+                <p className="eyebrow">The community has the receiver</p>
+                <h1 id="board-title">
+                  The switchboard<span className="brand-dot">.</span>
+                </h1>
+                <p className="page-intro">
+                  Pick a change. Make your case. Your call decides what happens
+                  next.
+                </p>
+              </div>
+              <button className="text-button" onClick={() => compose()}>
+                Propose a change <span className="plus">+</span>
               </button>
-              <span className="slip-bottom">
-                Fresh questions. Every single call.
-              </span>
-            </aside>
-          </div>
-        </section>
-        <section className="rules-section" id="rules">
-          <div className="wrap rules-grid">
-            <div>
-              <p className="eyebrow">Read before you ring</p>
-              <h2>
-                A little knowledge.
-                <br />A lot of <span>power.</span>
-              </h2>
-              <p>
-                You don’t need a big bag.
-                <br />
-                Just a little Ring and the right answers.
-              </p>
-              <div
-                className="progression"
-                aria-label="Required streak increases from 3 to 5 to 7 to 9"
-              >
-                <strong>3</strong>
-                <span>→</span>
-                <strong>5</strong>
-                <span>→</span>
-                <strong>7</strong>
-                <span>→</span>
-                <strong>9</strong>
-                <span>↗</span>
-              </div>
-              <span className="progression-caption">
-                Every win raises the target by two. For everyone.
-              </span>
             </div>
-            <div className="rules-list">
-              {[
-                [
-                  "Hold a little Ring.",
-                  "Connect your wallet and sign in. Any positive token balance counts. We check before you play and before your change is applied.",
-                ],
-                [
-                  "Put your idea on the board.",
-                  "Choose a change from the dropdown and post exactly what you want. Your private four-digit code connects that proposal to your call.",
-                ],
-                [
-                  "Call. Think fast.",
-                  "Use your private code to link the phone call. Say A, B, C, or D, or press 1, 2, 3, or 4. You get eight seconds after the beep.",
-                ],
-                [
-                  "Earn the change.",
-                  "Get the whole streak right and your proposal is queued to execute. Miss one and the run ends. Your next attempt is ten minutes after you started.",
-                ],
-              ].map(([title, copy], i) => (
-                <div className="rule-item" key={title}>
-                  <span>0{i + 1}</span>
-                  <div>
-                    <h3>{title}</h3>
-                    <p>{copy}</p>
-                  </div>
+            <div className="board-layout">
+              <div className="board-main">
+                <div className="board-filters" aria-label="Filter proposals">
+                  {[["all", "All proposals"], ...Object.entries(labels)].map(
+                    ([key, label]) => (
+                      <button
+                        key={key}
+                        aria-pressed={filter === key}
+                        className={filter === key ? "active" : ""}
+                        onClick={() => setFilter(key)}
+                      >
+                        {label}
+                      </button>
+                    ),
+                  )}
+                  <span>{filtered.length.toString().padStart(2, "0")}</span>
                 </div>
-              ))}
+                {networkError ? (
+                  <div className="empty-state" role="status">
+                    <p>{networkError}</p>
+                    <button
+                      className="text-button"
+                      onClick={() => void refresh()}
+                    >
+                      Try again <Arrow />
+                    </button>
+                  </div>
+                ) : !loaded ? (
+                  <div className="empty-state" role="status">
+                    Connecting to the switchboard…
+                  </div>
+                ) : filtered.length ? (
+                  <div className="proposal-list">
+                    {filtered.map((p) => (
+                      <button
+                        className="proposal-row"
+                        key={p.id}
+                        onClick={() => void detail(p)}
+                      >
+                        <span className="proposal-type">
+                          {p.kind === "picture"
+                            ? "IMG"
+                            : p.kind === "fees"
+                              ? "SOL"
+                              : "TXT"}
+                        </span>
+                        <span className="proposal-row-copy">
+                          <span className="proposal-meta">
+                            {labels[p.kind]} <span>by @{p.username}</span>
+                          </span>
+                          <strong>{p.title}</strong>
+                          <span className="proposal-note">
+                            {p.note || p.value}
+                          </span>
+                        </span>
+                        <span className="proposal-status">
+                          {p.status.replaceAll("_", " ")}
+                          <Arrow diagonal />
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="empty-state">
+                    <span className="empty-number">
+                      ({" "}
+                      {filter === "all"
+                        ? "YOUR IDEA GOES HERE"
+                        : `NO ${filter.toUpperCase()} PROPOSALS YET`}{" "}
+                      )
+                    </span>
+                    <h3>
+                      Nothing on the line.
+                      <br />
+                      Yet.
+                    </h3>
+                    <p>
+                      The first proposal could be yours.
+                      <br />
+                      Pick something worth calling about.
+                    </p>
+                    <button
+                      className="text-button"
+                      onClick={() =>
+                        compose(
+                          filter === "all"
+                            ? undefined
+                            : (filter as ProposalKind),
+                        )
+                      }
+                    >
+                      Start a proposal <Arrow />
+                    </button>
+                  </div>
+                )}
+                {savedDraft && (
+                  <div>
+                    <button className="draft-row" onClick={() => compose()}>
+                      <span>
+                        <small>PRIVATE DRAFT · THIS DEVICE</small>
+                        <strong>
+                          {savedDraft.title || "Your unfinished proposal"}
+                        </strong>
+                      </span>
+                      <span>
+                        Continue <Arrow />
+                      </span>
+                    </button>
+                    <button
+                      className="inline-link"
+                      onClick={() => {
+                        try {
+                          localStorage.removeItem("ring:draft:v1");
+                          setSavedDraft(null);
+                          setNotice("Private draft discarded.");
+                        } catch {
+                          setNotice("Browser storage is unavailable.");
+                        }
+                      }}
+                    >
+                      Discard private draft
+                    </button>
+                  </div>
+                )}
+                <div className="starter-heading">
+                  What can you change? <span>Pick a starting point</span>
+                </div>
+                {starters.map((item) => (
+                  <button
+                    className="starter-row"
+                    key={item.kind}
+                    onClick={() => compose(item.kind)}
+                  >
+                    <span className="starter-number">{item.number}</span>
+                    <span>
+                      <strong>{item.title}</strong>
+                      <small>{item.text}</small>
+                    </span>
+                    <Arrow diagonal />
+                  </button>
+                ))}
+              </div>
+              <aside className="call-slip">
+                <div className="slip-top">
+                  <span className="eyebrow">Ring hotline</span>
+                  <PhoneIcon />
+                </div>
+                <span className="line-status">
+                  <span className="status-dot" />
+                  {state.live ? "Accepting calls" : "Not taking calls yet"}
+                </span>
+                <h3 className={state.phone ? "hotline-number" : undefined}>
+                  {state.phone ? (
+                    state.phone
+                  ) : (
+                    <>
+                      Good things
+                      <br />
+                      are on
+                      <br />
+                      the line.
+                    </>
+                  )}
+                </h3>
+                <p>
+                  Submit your change first.
+                  <br />
+                  Then pick up the phone.
+                </p>
+                <div className="slip-divider" />
+                <dl>
+                  <div>
+                    <dt>Current target</dt>
+                    <dd>{state.required} in a row</dd>
+                  </div>
+                  <div>
+                    <dt>Next target after a win</dt>
+                    <dd>{state.required + 2} in a row</dd>
+                  </div>
+                  <div>
+                    <dt>Your next attempt</dt>
+                    <dd>
+                      {cooldown
+                        ? countdown
+                        : state.session
+                          ? "Ready"
+                          : "Connect wallet"}
+                    </dd>
+                  </div>
+                </dl>
+                <button className="slip-button" onClick={() => open("call")}>
+                  {state.live ? "Get ready to call" : "Before you call"}
+                  <Arrow diagonal />
+                </button>
+                <span className="slip-bottom">
+                  Fresh questions. Every single call.
+                </span>
+              </aside>
             </div>
-          </div>
-        </section>
-        <section className="last-call wrap">
-          <p>Something you’d change?</p>
-          <button onClick={() => compose()}>
-            Let’s hear it.
-            <Arrow diagonal />
-          </button>
-        </section>
+          </section>
+        )}
+        {view === "rules" && (
+          <section className="rules-section" id="rules">
+            <div className="wrap rules-grid">
+              <div>
+                <p className="eyebrow">Read before you ring</p>
+                <h1>
+                  A little knowledge.
+                  <br />A lot of <span>power.</span>
+                </h1>
+                <p>
+                  You don’t need a big bag.
+                  <br />
+                  Just a little Ring and the right answers.
+                </p>
+                <div
+                  className="progression"
+                  aria-label="Required streak increases from 3 to 5 to 7 to 9"
+                >
+                  <strong>3</strong>
+                  <span>→</span>
+                  <strong>5</strong>
+                  <span>→</span>
+                  <strong>7</strong>
+                  <span>→</span>
+                  <strong>9</strong>
+                  <span>↗</span>
+                </div>
+                <span className="progression-caption">
+                  Every win adds two questions for new games. Your target stays
+                  locked once your game starts.
+                </span>
+              </div>
+              <div className="rules-list">
+                {[
+                  [
+                    "Hold a little Ring.",
+                    "Connect your wallet and sign in. Any positive token balance counts. We check before you play and before your change is applied.",
+                  ],
+                  [
+                    "Put your idea on the board.",
+                    "Choose a change from the dropdown and post exactly what you want. Your private four-digit code connects that proposal to your call.",
+                  ],
+                  [
+                    "Call. Think fast.",
+                    "Use your private code to link the phone call. Say A, B, C, or D, or press 1, 2, 3, or 4. You get eight seconds after the beep.",
+                  ],
+                  [
+                    "Earn the change.",
+                    "Get the whole streak right and your proposal is queued to execute. Miss one and the run ends. Your next attempt is ten minutes after you started.",
+                  ],
+                ].map(([title, copy], i) => (
+                  <div className="rule-item" key={title}>
+                    <span>0{i + 1}</span>
+                    <div>
+                      <h3>{title}</h3>
+                      <p>{copy}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
+        {view !== "home" && (
+          <section className="last-call wrap">
+            <p>Something you’d change?</p>
+            <button onClick={() => compose()}>
+              Let’s hear it.
+              <Arrow diagonal />
+            </button>
+          </section>
+        )}
       </main>
       <div className="brand-band">
         <footer className="site-footer wrap">
-          <a className="wordmark" href="#" aria-label="Ring home">
+          <a className="wordmark" href="/" aria-label="Ring home">
             <BrandLogo />
           </a>
           <p>Pick up the future.</p>
           <span>Solana / Meteora</span>
-          <a href="#rules">
+          <a href="/rules">
             Rules <Arrow diagonal />
           </a>
         </footer>
