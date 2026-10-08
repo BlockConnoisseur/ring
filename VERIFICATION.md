@@ -8,6 +8,10 @@ The proposal form has six choices: coin name, ticker, picture, description, webs
 
 The replacement voice process can listen in standby during deployment, but rejects requests and does not recover games until the previous lease is released or expires. The handoff test verifies both sides of that boundary. Deploy with calls closed and drained; this is a maintenance handoff, not zero-downtime.
 
+Commit `d0b53cd` is live on Vercel and Render. After the real Render handoff, `/ready` returned 200 with `ready: true` and `codeDigits: 4`; signed `/incoming` and `/status` returned 200, unsigned `/incoming` returned 403. Twilio API readback confirms the existing number still points to those Render POST endpoints. Desktop and 390px mobile checks verified the conditional form, saved/restored private draft and disabled prelaunch posting. The extra filters initially overflowed on mobile; wrapping now keeps document width within the viewport. The temporary test draft was removed.
+
+Render's dashboard still reports a failed payment requiring the account owner's payment-method update. Other launch blockers remain: mint/pool configuration, restricted signing policies, persistent executor/question-feed hosting, real handset verification and live provider/host concurrency validation. No live games or token changes were enabled.
+
 ## Concurrent-call update
 
 The current build allows up to 100 simultaneous games, with a target locked at admission. Verification: 42 application tests passed, eight real local PostgreSQL integration tests passed, TypeScript passed, and the production build passed. A separate load run completed 100 simultaneous authenticated HTTP/WebSocket calls, each with three eight-second answer windows, unique questions, one win and one execution. The 100-call run took about 28 seconds, with admissions in 553ms. Its speech and Solana responses are simulated. The PostgreSQL test performed 100 admissions, 300 answers and 100 duplicate answer replays in 3.25 seconds without lost updates. These are local measurements, not cloud or carrier capacity certification. See [CAPACITY.md](CAPACITY.md).
