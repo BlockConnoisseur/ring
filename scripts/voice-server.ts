@@ -76,8 +76,18 @@ function message(text: string) {
   xml.hangup();
   return xml.toString();
 }
+let ownsDatabase = false;
 const server = createServer(async (req, res) => {
   try {
+    if (req.method === "GET" && req.url === "/ready") {
+      res.writeHead(ownsDatabase ? 200 : 503, {
+        "Content-Type": "application/json",
+      });
+      res.end(
+        JSON.stringify({ ready: ownsDatabase, codeDigits: CALL_CODE_DIGITS }),
+      );
+      return;
+    }
     if (
       req.method !== "POST" ||
       !["/incoming", "/code", "/status"].includes(req.url || "")
@@ -94,6 +104,11 @@ const server = createServer(async (req, res) => {
       return;
     }
     res.setHeader("Content-Type", "text/xml");
+    if (!ownsDatabase) {
+      res.writeHead(503, { "Retry-After": "5" });
+      res.end(message("Ring is restarting. Please try again shortly."));
+      return;
+    }
     if (path === "/status") {
       if (
         ["completed", "failed", "busy", "no-answer", "canceled"].includes(
@@ -203,6 +218,10 @@ const server = createServer(async (req, res) => {
 });
 const sockets = new WebSocketServer({ noServer: true, maxPayload: 32 * 1024 });
 server.on("upgrade", (req, socket, head) => {
+  if (!ownsDatabase) {
+    socket.end("HTTP/1.1 503 Service Unavailable\r\nConnection: close\r\n\r\n");
+    return;
+  }
   const signature = String(req.headers["x-twilio-signature"] || "");
   const valid =
     req.url === "/stream" &&
@@ -504,11 +523,26 @@ sockets.on("connection", (ws) => {
   timer = setTimeout(() => ws.close(), 15000);
 });
 async function main() {
-  // Acquire ownership BEFORE recovery so another host cannot void a live call.
-  const lease = await acquireLease("voice", 45000);
+  // Render starts the replacement before stopping the previous process. Bind the
+  // TCP port in standby, but never admit calls or recover games without ownership.
+  await new Promise<void>((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(
+      Number(process.env.VOICE_PORT || 3321),
+      process.env.VOICE_HOST || "127.0.0.1",
+      resolve,
+    );
+  });
+  console.log("Ring voice listener started; waiting for database ownership.");
+  const deadline = Date.now() + 180_000;
+  let lease = await acquireLease("voice", 45000);
+  while (!lease && Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, 5000));
+    lease = await acquireLease("voice", 45000);
+  }
   if (!lease)
     throw new Error(
-      "A voice worker already owns this database. Wait for its lease to expire before restarting.",
+      "Another voice worker retained ownership for three minutes; stopping standby.",
     );
   await transact((s) => {
     s.voiceHeartbeat = Date.now();
@@ -518,6 +552,8 @@ async function main() {
         s.wallets[g.wallet].cooldownUntil = 0;
       }
   });
+  ownsDatabase = true;
+  console.log("Ring voice worker ready behind the HTTPS reverse proxy.");
   let renewing = false;
   setInterval(async () => {
     if (renewing) return;
@@ -528,6 +564,7 @@ async function main() {
         s.voiceHeartbeat = Date.now();
       });
     } catch {
+      ownsDatabase = false;
       console.error(
         "Voice worker lost database ownership; stopping for recovery.",
       );
@@ -536,12 +573,6 @@ async function main() {
       renewing = false;
     }
   }, 15000);
-  server.listen(
-    Number(process.env.VOICE_PORT || 3321),
-    process.env.VOICE_HOST || "127.0.0.1",
-    () =>
-      console.log("Ring voice worker ready behind the HTTPS reverse proxy."),
-  );
 }
 void main().catch((error) => {
   console.error(error.message);

@@ -1,5 +1,13 @@
 # Verification — 2026-10-08
 
+## Vercel and four-digit proposal flow
+
+`https://ringai.dev` is deployed on Vercel with verified HTTPS. `www.ringai.dev` redirects to the apex. The production `/api/state` returns 200 using the restricted Supabase connection and its bundled CA certificate. GitHub main is connected for future Vercel deployments. The site remains in prelaunch (`RING_LIVE=false`, no mint).
+
+The proposal form has six choices: coin name, ticker, picture, description, website and fee recipient. Eligible live posts automatically reserve a private four-digit code tied to that wallet and immutable proposal; codes expire after ten minutes and only hashes are stored. Callbacks enforce caller-ID rate limits across redials. The updated 45-case application suite, TypeScript and production build passed. Tests cover code collisions/exhaustion, replacement, owner-only access, each proposal type, the complete timed phone game and worker lease handoff. A new 100-call synthetic provider run completed in 28 seconds with admissions in 422ms. This does not certify live hosted/carrier capacity or actual on-chain execution.
+
+The replacement voice process can listen in standby during deployment, but rejects requests and does not recover games until the previous lease is released or expires. The handoff test verifies both sides of that boundary. Deploy with calls closed and drained; this is a maintenance handoff, not zero-downtime.
+
 ## Concurrent-call update
 
 The current build allows up to 100 simultaneous games, with a target locked at admission. Verification: 42 application tests passed, eight real local PostgreSQL integration tests passed, TypeScript passed, and the production build passed. A separate load run completed 100 simultaneous authenticated HTTP/WebSocket calls, each with three eight-second answer windows, unique questions, one win and one execution. The 100-call run took about 28 seconds, with admissions in 553ms. Its speech and Solana responses are simulated. The PostgreSQL test performed 100 admissions, 300 answers and 100 duplicate answer replays in 3.25 seconds without lost updates. These are local measurements, not cloud or carrier capacity certification. See [CAPACITY.md](CAPACITY.md).

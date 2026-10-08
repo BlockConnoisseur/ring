@@ -100,7 +100,7 @@ export async function GET(
         live: acceptingCalls(s),
         canPost: canPost(),
         feePolicy:
-          "Creator fees go to the winning wallet until the next fee proposal is applied. Existing fees settle to the previous recipient. SOL fees arrive as wrapped SOL.",
+          "Creator fees go to the wallet chosen in the winning fee proposal until the next fee proposal is applied. Existing fees settle to the previous recipient. SOL fees arrive as wrapped SOL.",
         feeRecipient:
           s.fees?.recipient || process.env.RING_INITIAL_FEE_RECIPIENT || null,
         lastGame: lastGame

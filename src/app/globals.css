@@ -342,6 +342,7 @@ h1 span {
 }
 .board-filters {
   display: flex;
+  flex-wrap: wrap;
   gap: 27px;
   align-items: center;
   border-bottom: 1px solid var(--line);
