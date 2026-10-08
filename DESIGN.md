@@ -28,6 +28,14 @@ The user supplied a [Ring brand sheet](https://conferencing-mar-safer-uncle.tryc
 
 ## Generated asset
 
+## Dark mode and page structure — October 8, 2026
+
+The owner's next brief requested a bolder site, dark mode, a floating pill header, a single-line hotline and actual separate pages. `/` is the telephone-poster introduction with a red hotline band; `/switchboard` contains the proposal board and call slip; `/rules` explains the game. Each has one primary heading and a page-specific title. The same proposal, wallet and call components serve all routes.
+
+Dark is the first-visit default. The toggle stores `ring:theme:v1` and an early local-only script restores the choice before the page is painted. Semantic tokens cover body copy, borders, inputs, dialogs, focus and proposal details in both themes. The header is a compact opaque capsule with active-route indicators; mobile keeps both route links visible. The hotline uses unbroken tabular numerals and responsive sizing, including the mobile call slip.
+
+Verification: Next production build and TypeScript passed; Impeccable's single mechanical scan returned no findings. Browser checks covered dark Home and Switchboard, light Rules, mobile navigation, the dark proposal form and keyboard focus/dismissal, theme persistence across routes and reload, and the phone number at desktop, 390px and 320px widths. No document or phone-number overflow was measured. Core game and server permissions were not changed.
+
 The built-in image-generation tool produced `public/ring-phone.png`. The final image was copied into the repository with its transparency preserved. Next Image serves appropriately sized versions.
 
 Prompt:
