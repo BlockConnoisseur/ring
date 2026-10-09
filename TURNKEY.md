@@ -22,7 +22,7 @@ TURNKEY_API_PRIVATE_KEY=<API private key>
 
 These are server environment variables, never `NEXT_PUBLIC_` values. The website and voice worker only need `RING_SIGNER` and `TURNKEY_SIGNER_ADDRESS` for readiness; they do not need the API private key. The default Docker Compose stack clears that private key from the website, voice and question containers and passes it only to the executor. No Solana keypair-file mount is required in Turnkey mode.
 
-Run `npm run doctor` after configuration. The doctor checks required values and on-chain authority once the token exists. It does not prove the Turnkey policy authorizes signing; that requires an acceptance test with the actual account. Keep `RING_LIVE=false` until the phone, token, signer policies and hosting are ready.
+Run `npm run doctor` after configuration. The doctor checks required values and on-chain authority once the token exists. The executor additionally verifies a real signature on an unbroadcast, no-op metadata transaction before advertising readiness, and repeats that permission check every ten minutes. `RING_LIVE=true` arms the services; admission still requires a healthy signer, voice worker and question stock.
 
 ## Local development
 
@@ -32,7 +32,9 @@ Use `RING_SIGNER=keypair` and `RING_AUTHORITY_KEYPAIR=/absolute/path/keypair.jso
 
 On October 8, 2026, the Ring Authority wallet and its Solana account were created. A separate non-root Ring executor user and API key are configured in the ignored local environment. Live `getWhoami` authentication and `getWalletAccounts` succeeded, and the returned account matches `TURNKEY_SIGNER_ADDRESS`. The Solana private key was not exported.
 
-Signing policies remain unconfigured because the Ring mint and Meteora pool do not exist yet. API authentication does not establish permission to sign. The executor is not deployed and no live signature or token transaction has been produced. Complete the address-specific policy and on-chain authority checks before launch.
+The reserved mint is `GuT6mfBehxBXiT1UqyoDEdX8yPLE8xwB5zzSAUm8DCxZ`. The user approved the mint-scoped `Ring metadata only - GuT6mf` policy, and a real metadata signature passed cryptographic verification without broadcasting. The policy permits one legacy Metaplex UpdateV1 data instruction for this mint, with the new-authority field absent and fixed account restrictions. It grants no Meteora fee claims, transfers, exports or administration.
+
+The executor and question-refill process are deployed as the separate `ring-automation` Render service. Website and voice configuration use the same reserved mint and Supabase database. At this setup checkpoint the mint had not launched, and the signer held zero SOL. Launch must retain mutable metadata; afterward, the current update authority must approve its transfer to `FoCjYoXoC3ihDSRHWZ3EFPAx3NDF3yQtJeQCmvHt1PoF`, and this signer needs at least 0.01 SOL. Existing metadata hosts must pass the allowlist. Fees remain controlled by `6n3erAFxnvfjsAfbPdabwnpvfGpi2RW5Z8Yk1AYspzXs`. Complete on-chain checks and a real end-to-end call before declaring gameplay ready.
 
 The tests exercise the real Turnkey Solana serializer against a simulated completed signing response, verify Ed25519 signatures, reject altered messages and invalid signatures, propagate policy rejection, and confirm local-signer compatibility.
 
