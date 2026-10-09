@@ -1561,7 +1561,7 @@ textarea {
     align-self: flex-end;
     width: 90%;
     height: 335px;
-    margin-top: -14px;
+    margin-top: 12px;
     margin-bottom: 12px;
     pointer-events: auto;
   }
