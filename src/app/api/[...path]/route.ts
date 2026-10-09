@@ -20,6 +20,8 @@ import { getAsset, publishImage } from "@/lib/assets";
 import { callCapacity } from "@/lib/capacity";
 import { proposalKinds } from "@/lib/types";
 import { validateProposalValue } from "@/lib/proposal-value";
+import { getFeeClaimStatus } from "@/lib/fee-claims";
+import { latestFeeClaim, prepareFeeClaim, retryFeeClaim, submitFeeClaim } from "@/lib/fee-claim-service";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 const json = (body: unknown, status = 200) =>
@@ -72,6 +74,8 @@ export async function GET(
 ) {
   try {
     const path = (await params).path.join("/");
+    if (path === "fees") return json(await getFeeClaimStatus());
+    if (path === "fees/claim") return json({ claim: await latestFeeClaim(await requireSession(req)) });
     if (path.startsWith("assets/")) {
       const asset = await getAsset(path.slice(7));
       if (!asset) return json({ error: "Asset not found." }, 404);
@@ -226,6 +230,15 @@ export async function POST(
       return res;
     }
     const wallet = await requireSession(req);
+    if (path === "fees/prepare") return json({ claim: await prepareFeeClaim(wallet) });
+    if (path === "fees/submit") {
+      const { id, signed } = z.object({ id: z.uuid(), signed: z.string().min(1).max(2000) }).parse(body);
+      return json({ claim: await submitFeeClaim(wallet, id, signed) });
+    }
+    if (path === "fees/retry") {
+      const { id } = z.object({ id: z.uuid() }).parse(body);
+      return json({ claim: await retryFeeClaim(wallet, id) });
+    }
     if (path === "proposals") {
       if (!canPost())
         throw new Error(

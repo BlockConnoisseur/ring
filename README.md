@@ -60,6 +60,12 @@ Set `RING_LIVE=true` after configuration. The website still closes the queue if 
 
 Alternatively, the included Docker Compose stack runs the four processes and Caddy TLS proxy. Set `APP_DOMAIN` and `VOICE_DOMAIN` to DNS names pointing to the host, `APP_ORIGIN` and `RING_ASSET_ORIGIN` to the website HTTPS origin, and `VOICE_PUBLIC_URL` to the voice HTTPS origin. Configure Turnkey as described above, then run `docker compose up --build -d`; no Solana private-key file is required. The optional `compose.keypair.yaml` adds a development-only local signer mount. With SQLite, back up the `ring-data` volume, including its live WAL or a consistent SQLite backup. With Supabase, configure database backups on the chosen plan. The database contains questions already used, sessions, proposals, assets and transaction receipts; do not reset it on deployments. The default Compose stack passes the Turnkey API private key only to the executor.
 
+## Owner fee claims
+
+Open `/fees`, connect the configured fee wallet using Phantom or Solflare, and sign in. Review the SOL payment, network fee and account rent, then approve the transaction in that wallet. The page claims only the original Ring DBC pool's partner fees, including residual DBC fees after migration; post-migration DAMM position fees are explicitly outside this page's scope. The server verifies the fixed mint/config/pool/owner on-chain. It never signs or chooses a different recipient. Native SOL is returned through a fresh temporary wrapped-SOL account; existing wallet wSOL is untouched.
+
+The exact preparation and signed bytes are persisted in the shared store before broadcast. Recovery checks the original signature or resends those same bytes. Terminal finalized outcomes are retained. No new claim is prepared while a submitted transaction remains pending. Claiming does not require token holdings or live trivia services.
+
 ## Questions
 
 The persistent automation service also runs an independent Open Trivia DB refill worker. It maintains at least 2,000 unused questions (or twice the configured concurrent-game requirement), spaces requests, persists session tokens, and backs off during source outages. Token expiration never resets Ring's own question retirement. Additional question data is from [Open Trivia DB](https://opentdb.com/), licensed [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/); encoding is decoded and answer order is shuffled. Attribution also appears on the rules page.

@@ -2400,6 +2400,35 @@ textarea {
 }
 
 /* Condensed poster lettering; controls and long-form copy stay in Archivo. */
+.fees-page { display: grid; grid-template-columns: minmax(0, .85fr) minmax(0, 1.15fr); gap: 56px; padding-block: 88px 100px; align-items: start; }
+.fees-heading h1 { font-size: clamp(76px, 7vw, 120px); margin: 24px 0; }
+.fees-heading h1 span { color: var(--signal); }
+.fees-heading > p:last-child { max-width: 360px; color: var(--muted); line-height: 1.7; }
+.fees-card { border-top: 4px solid var(--accent); min-width: 0; }
+.fees-card-top { display: flex; justify-content: space-between; align-items: center; gap: 16px; font-family: var(--font-mono); font-size: 11px; letter-spacing: .08em; }
+.fees-amount { font-family: var(--font-display); font-size: clamp(38px, 4.5vw, 70px); font-weight: 700; letter-spacing: -.02em; overflow-wrap: anywhere; }
+.fees-amount > span { font-family: var(--font-mono); font-size: 18px; margin-left: 12px; color: var(--muted); }
+.fees-caption, .fees-wallet p, .fees-review p, .fees-pending p { font-size: 13px; color: var(--muted); line-height: 1.65; }
+.fees-wallet { margin-block: 28px 20px; padding-block: 20px; border-block: 1px solid var(--line); }
+.fees-wallet > span, .fees-details > p:first-child { display: block; font-family: var(--font-mono); font-size: 10px; letter-spacing: .1em; margin-bottom: 12px; }
+.fees-wallet > a, .fees-details > a { overflow-wrap: anywhere; font-family: var(--font-mono); font-size: 12px; line-height: 1.8; }
+.fees-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.fees-actions button { background: transparent; border: 1px solid var(--line); border-radius: 8px; padding: 12px 15px; font-size: 13px; }
+.fees-actions button:hover { border-color: var(--ink); }
+.fees-submit { margin-top: 24px; width: 100%; justify-content: space-between; }
+.fees-review, .fees-pending { border-top: 1px solid var(--line); padding-top: 16px; margin-top: 24px; }
+.fees-review h2, .fees-pending h2 { font-size: 21px; }
+.fees-review dl { font-size: 12px; }
+.fees-review dl > div { display: flex; justify-content: space-between; gap: 16px; margin-block: 12px; }
+.fees-review dd { text-align: right; margin: 0; font-variant-numeric: tabular-nums; }
+.fees-review dt { color: var(--muted); }
+.fees-success { color: var(--ink); border-left: 3px solid var(--accent); padding-left: 12px; font-size: 14px; }
+.fees-error { color: var(--signal); font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; }
+.fees-receipt { display: inline-block; text-decoration: underline; margin-block: 12px; font-size: 13px; }
+.fees-details { grid-column: 1 / -1; border-top: 1px solid var(--line); padding-top: 24px; }
+.fees-details > p:not(:first-child) { max-width: 650px; font-size: 13px; line-height: 1.7; color: var(--muted); }
+.site-footer > a[href="/fees"] { display: inline-flex; gap: 8px; align-items: center; }
+@media (max-width: 760px) { .fees-page { grid-template-columns: minmax(0, 1fr); gap: 32px; padding-block: 40px 64px; } .fees-heading h1 { font-size: 80px; } .fees-amount { font-size: clamp(36px, 10vw, 66px); } }
 h1,
 .section-heading h1,
 .section-heading h2,

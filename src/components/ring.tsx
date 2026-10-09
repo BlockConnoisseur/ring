@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
+import dynamic from "next/dynamic";
+import type {} from "@/lib/wallet-provider";
 import { CallLobby } from "./call-lobby";
 import { Icon } from "./ui/icon";
 import bs58 from "bs58";
@@ -13,20 +15,7 @@ import {
   type PublicState,
 } from "@/lib/types";
 
-type WalletProvider = {
-  connect: () => Promise<{ publicKey: { toString: () => string } }>;
-  signMessage: (
-    message: Uint8Array,
-    encoding?: string,
-  ) => Promise<{ signature: Uint8Array }>;
-  disconnect?: () => Promise<void>;
-};
-declare global {
-  interface Window {
-    phantom?: { solana?: WalletProvider };
-    solflare?: WalletProvider;
-  }
-}
+const FeeClaims = dynamic(() => import("./fee-claims"));
 type Draft = {
   title: string;
   kind: ProposalKind;
@@ -142,7 +131,7 @@ const short = (wallet: string) => `${wallet.slice(0, 4)}…${wallet.slice(-4)}`;
 export default function Ring({
   view = "home",
 }: {
-  view?: "home" | "switchboard" | "rules";
+  view?: "home" | "switchboard" | "rules" | "fees";
 }) {
   const [theme, setTheme] = useState("dark");
   useEffect(() => {
@@ -491,7 +480,7 @@ export default function Ring({
               )}
             </svg>
           </button>
-          <button className="wallet-button" onClick={() => open("wallet")}>
+          <button className="wallet-button" onClick={() => view === "fees" ? document.getElementById("claim-wallet")?.scrollIntoView({ behavior: "smooth" }) : open("wallet")}>
             <svg
               className="wallet-symbol"
               aria-hidden="true"
@@ -504,12 +493,13 @@ export default function Ring({
             >
               <path d="M4 6h15v14H4V6Zm0 0V4h12v2M15 11h6v5h-6z" />
             </svg>
-            {state.session ? short(state.session.wallet) : "Connect wallet"}
+            {view === "fees" ? "Fee wallet" : state.session ? short(state.session.wallet) : "Connect wallet"}
             <Arrow diagonal />
           </button>
         </header>
       </div>
       <main id="main" className={`page-${view}`}>
+        {view === "fees" && <FeeClaims onAuthenticated={refresh} />}
         {view === "home" && (
           <>
             <section className="hero wrap" aria-labelledby="hero-title">
@@ -956,7 +946,7 @@ export default function Ring({
             </div>
           </section>
         )}
-        {view !== "home" && (
+        {view !== "home" && view !== "fees" && (
           <section className="last-call wrap">
             <p>Something you’d change?</p>
             <button onClick={() => compose()}>
@@ -973,6 +963,7 @@ export default function Ring({
           </a>
           <p>Pick up the future.</p>
           <span>Solana / Meteora</span>
+          <a href="/fees" aria-current={view === "fees" ? "page" : undefined}>Claim fees <Arrow diagonal /></a>
           <a href="/rules">
             Rules <Arrow diagonal />
           </a>

@@ -1,6 +1,7 @@
 import { randomInt, randomUUID, createHash } from "node:crypto";
 import type { Proposal } from "./types";
 import type { FeeSource } from "./meteora";
+import type { FeeClaimRecord } from "./fee-claim-service";
 import { callCapacity } from "./capacity";
 export const COOLDOWN_MS = 600_000;
 export const ANSWER_MS = 8_000;
@@ -89,6 +90,7 @@ export type Store = {
   voiceHeartbeat?: number;
   questionFeed?: { offset: number; lastSync: number; error?: string };
   triviaFeed?: { token?: string; nextSync: number; error?: string };
+  feeClaims?: Record<string, FeeClaimRecord>;
 };
 export function bindMint(s: Store, mint: string) {
   if (s.tokenMint && s.tokenMint !== mint)

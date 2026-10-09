@@ -88,6 +88,36 @@ test("anonymous users cannot join a queue or publish", async () => {
   assert.equal((await post("queue", { proposalId: "missing" })).status, 400);
   assert.equal((await post("proposals", {})).status, 400);
 });
+test("fee claims require a signed owner session and same-origin requests", async () => {
+  for (const action of ["prepare", "submit", "retry"]) {
+    assert.equal((await post(`fees/${action}`, {})).status, 400);
+    assert.equal(
+      (await post(`fees/${action}`, {}, "https://attacker.example")).status,
+      403,
+    );
+  }
+  const key = nacl.sign.keyPair();
+  const wallet = bs58.encode(key.publicKey);
+  const challenge = await (await post("auth/challenge", { wallet })).json();
+  const login = await post("auth/verify", {
+    id: challenge.id,
+    signature: bs58.encode(
+      nacl.sign.detached(
+        new TextEncoder().encode(challenge.message),
+        key.secretKey,
+      ),
+    ),
+  });
+  const response = await post(
+    "fees/prepare",
+    {},
+    undefined,
+    login.headers.get("set-cookie")!,
+  );
+  assert.equal(response.status, 400);
+  assert.match((await response.json()).error, /fee-claim wallet/);
+  assert.equal((await readStore()).feeClaims?.[wallet], undefined);
+});
 test("holding checks use raw integers, accept fractional tokens, and reject wrong mints", async () => {
   const original = globalThis.fetch;
   const wallet = bs58.encode(nacl.sign.keyPair().publicKey);
