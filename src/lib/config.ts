@@ -8,8 +8,6 @@ export function liveReady() {
       process.env.RING_PHONE_NUMBER &&
       process.env.VOICE_PUBLIC_URL &&
       signerSelected() &&
-      process.env.RING_DBC_POOL &&
-      process.env.RING_INITIAL_FEE_RECIPIENT &&
       (process.env.RING_ASSET_ORIGIN || process.env.APP_ORIGIN),
     )
   );

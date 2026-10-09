@@ -73,9 +73,9 @@ const starters: {
     number: "02",
   },
   {
-    kind: "fees",
-    title: "Send the fees somewhere else.",
-    text: "Choose the wallet that receives creator fees.",
+    kind: "name",
+    title: "Give Ring a new name.",
+    text: "Rename the token for everyone.",
     number: "03",
   },
 ];
@@ -214,7 +214,7 @@ export default function Ring({
         if (
           saved &&
           typeof saved.title === "string" &&
-          proposalKinds.includes(saved.kind)
+          proposalKinds.some((kind) => kind === saved.kind)
         )
           setSavedDraft(saved);
       }
@@ -612,26 +612,28 @@ export default function Ring({
                   could be yours.
                 </h2>
                 <p>
-                  A new face. A new name. A different place for the fees. Put
-                  your idea on the board, then earn it on the phone.
+                  A new face. A new name. A different story to tell. Put your
+                  idea on the board, then earn it on the phone.
                 </p>
                 <a className="text-button" href="/switchboard">
                   Explore the switchboard <Arrow diagonal />
                 </a>
               </div>
               <div className="dispatch-options">
-                {(["name", "picture", "fees"] as ProposalKind[]).map((kind) => (
-                  <button key={kind} onClick={() => compose(kind)}>
-                    <span>
-                      {kind === "name"
-                        ? "Name the coin."
-                        : kind === "picture"
-                          ? "Change the face."
-                          : "Direct the fees."}
-                    </span>
-                    <Arrow diagonal />
-                  </button>
-                ))}
+                {(["name", "picture", "website"] as ProposalKind[]).map(
+                  (kind) => (
+                    <button key={kind} onClick={() => compose(kind)}>
+                      <span>
+                        {kind === "name"
+                          ? "Name the coin."
+                          : kind === "picture"
+                            ? "Change the face."
+                            : "Change the link."}
+                      </span>
+                      <Arrow diagonal />
+                    </button>
+                  ),
+                )}
               </div>
             </section>
             <section className="hotline-banner">
@@ -679,18 +681,19 @@ export default function Ring({
             <div className="board-layout">
               <div className="board-main">
                 <div className="board-filters" aria-label="Filter proposals">
-                  {[["all", "All proposals"], ...Object.entries(labels)].map(
-                    ([key, label]) => (
-                      <button
-                        key={key}
-                        aria-pressed={filter === key}
-                        className={filter === key ? "active" : ""}
-                        onClick={() => setFilter(key)}
-                      >
-                        {label}
-                      </button>
-                    ),
-                  )}
+                  {[
+                    ["all", "All proposals"],
+                    ...proposalKinds.map((kind) => [kind, labels[kind]]),
+                  ].map(([key, label]) => (
+                    <button
+                      key={key}
+                      aria-pressed={filter === key}
+                      className={filter === key ? "active" : ""}
+                      onClick={() => setFilter(key)}
+                    >
+                      {label}
+                    </button>
+                  ))}
                   <span>{filtered.length.toString().padStart(2, "0")}</span>
                 </div>
                 {networkError ? (
@@ -1090,9 +1093,9 @@ export default function Ring({
                     }))
                   }
                 >
-                  {Object.entries(labels).map(([kind, label]) => (
+                  {proposalKinds.map((kind) => (
                     <option key={kind} value={kind}>
-                      {label}
+                      {labels[kind]}
                     </option>
                   ))}
                 </select>
@@ -1160,15 +1163,13 @@ export default function Ring({
                 ) : (
                   <>
                     <label className="field-label" htmlFor="value">
-                      {draft.kind === "fees"
-                        ? "Recipient Solana wallet"
-                        : draft.kind === "name"
-                          ? "The new coin name"
-                          : draft.kind === "symbol"
-                            ? "The new ticker symbol"
-                            : draft.kind === "website"
-                              ? "The new website link"
-                              : "The new description"}
+                      {draft.kind === "name"
+                        ? "The new coin name"
+                        : draft.kind === "symbol"
+                          ? "The new ticker symbol"
+                          : draft.kind === "website"
+                            ? "The new website link"
+                            : "The new description"}
                     </label>
                     {draft.kind === "description" ? (
                       <textarea
@@ -1191,9 +1192,7 @@ export default function Ring({
                             ? 32
                             : draft.kind === "symbol"
                               ? 10
-                              : draft.kind === "fees"
-                                ? 44
-                                : 500
+                              : 500
                         }
                         pattern={
                           draft.kind === "symbol"
@@ -1212,7 +1211,7 @@ export default function Ring({
                               ? "RING"
                               : draft.kind === "website"
                                 ? "https://your-site.com"
-                                : "Paste the full wallet address"
+                                : "What should Ring say about itself?"
                         }
                       />
                     )}
@@ -1233,8 +1232,7 @@ export default function Ring({
                   {state.canPost
                     ? "Post your proposal to get a private four-digit call code when the line is open. Codes expire after ten minutes."
                     : "Ring is in prelaunch. You can save your idea as a private draft now."}
-                  {draft.kind === "fees" &&
-                    " Your chosen wallet receives Ring’s creator fees until the next fee proposal is applied. Previous fees settle first. SOL payouts arrive as wrapped SOL."}
+                  {" Trading fees stay with the project owner."}
                 </div>
                 {error && (
                   <p className="form-error" role="alert">

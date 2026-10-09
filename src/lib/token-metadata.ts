@@ -123,6 +123,42 @@ async function loadJson(uri: string) {
   return data as Record<string, unknown>;
 }
 
+export async function verifyMetadataAuthority(
+  connection: Connection,
+  signer: { publicKey: PublicKey },
+) {
+  const mint = ringMint();
+  const account = await connection.getAccountInfo(mint, "finalized");
+  if (!account) throw new Error("Ring mint does not exist.");
+  if (account.owner.equals(TOKEN_2022_PROGRAM_ID)) {
+    const state = await getMint(
+      connection,
+      mint,
+      "finalized",
+      TOKEN_2022_PROGRAM_ID,
+    );
+    if (!getMetadataPointerState(state)?.metadataAddress?.equals(mint))
+      throw new Error("Ring requires metadata stored on the Token-2022 mint.");
+    const metadata = await getTokenMetadata(connection, mint, "finalized");
+    if (!metadata?.updateAuthority?.equals(signer.publicKey))
+      throw new Error("Ring signer is not the metadata authority.");
+    await loadJson(metadata.uri.replace(/\0/g, "").trim());
+    return;
+  }
+  if (!account.owner.equals(TOKEN_PROGRAM_ID))
+    throw new Error("Unsupported Ring token program.");
+  const metadata = await fetchMetadataFromSeeds(
+    createUmi(connection.rpcEndpoint).use(mplTokenMetadata()),
+    { mint: publicKey(mint.toBase58()) },
+  );
+  if (
+    !metadata.isMutable ||
+    metadata.updateAuthority !== signer.publicKey.toBase58()
+  )
+    throw new Error("Ring needs mutable metadata and its update authority.");
+  await loadJson(metadata.uri.replace(/\0/g, "").trim());
+}
+
 export async function metadataTransaction(
   connection: Connection,
   signer: { publicKey: PublicKey },

@@ -9,8 +9,8 @@ Player login remains Phantom/Solflare. This integration controls Ring's project 
 1. Sign up at [app.turnkey.com](https://app.turnkey.com/) and create an organization for Ring.
 2. Create a wallet named Ring Authority with a Solana account (Ed25519, Solana address format). Keep its public address for `TURNKEY_SIGNER_ADDRESS`. This can be created before the token exists.
 3. Create a dedicated **non-root** API user for the executor and an API key pair. Save the organization ID, API public key and API private key in the executor's private environment. Keep organization ownership/recovery with your own account.
-4. Before enabling live execution, grant that user signing permission for only the Ring authority wallet and the required transaction shapes. Use parsed Solana transaction policies: Ring calls `signTransaction`, never `signRawPayload`. Policies should restrict metadata updates to the Ring mint, fee claims to its verified Meteora pools/positions, associated-account creation, fee-routing memos, and bounded metadata rent top-ups. Do not grant blanket transfers, wallet exports or organization administration. Exact mint/pool restrictions must wait until those addresses exist. Turnkey root quorum can bypass normal policies; test with the non-root runtime user.
-5. When launching the token, retain metadata update authority in this Turnkey wallet and make it the relevant Meteora creator/position owner. Revoked update authority cannot be restored by this app. Supply the resulting mint/pool addresses and a small SOL balance for fees/rent before going live.
+4. Before enabling live execution, grant that user signing permission for only the Ring authority wallet and the required transaction shapes. Use parsed Solana transaction policies: Ring calls `signTransaction`, never `signRawPayload`. Policies should restrict metadata updates to the Ring mint and bounded metadata rent top-ups. Do not grant blanket transfers, wallet exports or organization administration. Exact mint restrictions must wait until those addresses exist. Turnkey root quorum can bypass normal policies; test with the non-root runtime user.
+5. When launching the token, retain or transfer only metadata update authority to this Turnkey wallet. The project owner keeps all Meteora fee-claim and LP rights. Revoked update authority cannot be restored by this app. Supply the resulting mint/pool addresses and a small SOL balance for fees/rent before going live.
 
 ```dotenv
 RING_SIGNER=turnkey
@@ -22,7 +22,7 @@ TURNKEY_API_PRIVATE_KEY=<API private key>
 
 These are server environment variables, never `NEXT_PUBLIC_` values. The website and voice worker only need `RING_SIGNER` and `TURNKEY_SIGNER_ADDRESS` for readiness; they do not need the API private key. The default Docker Compose stack clears that private key from the website, voice and question containers and passes it only to the executor. No Solana keypair-file mount is required in Turnkey mode.
 
-Run `npm run doctor` after configuration. The doctor checks required values and on-chain authority once the token exists. It does not prove the Turnkey policy authorizes signing; that requires an acceptance test with the actual account. Keep `RING_LIVE=false` until the phone, token, pools, signer policies and hosting are ready.
+Run `npm run doctor` after configuration. The doctor checks required values and on-chain authority once the token exists. It does not prove the Turnkey policy authorizes signing; that requires an acceptance test with the actual account. Keep `RING_LIVE=false` until the phone, token, signer policies and hosting are ready.
 
 ## Local development
 

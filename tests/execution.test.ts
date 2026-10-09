@@ -4,7 +4,6 @@ import assert from "node:assert/strict";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { Keypair } from "@solana/web3.js";
 import {
   operation,
   runOperation,
@@ -14,7 +13,7 @@ import {
 import { nextMetadata } from "../src/lib/token-metadata";
 import { validateProposalValue } from "../src/lib/proposal-value";
 import { publishAsset, getAsset } from "../src/lib/assets";
-import { applyExecution, feeMemo } from "../src/lib/executor";
+import { applyExecution } from "../src/lib/executor";
 import { emptyStore, type Game } from "../src/lib/game";
 import type { Proposal } from "../src/lib/types";
 
@@ -177,10 +176,10 @@ test("assets are immutable and content-addressed", async () => {
   assert.equal(await getAsset("../../keypair"), undefined);
 });
 
-test("fee recipient changes exactly once after a verified win and finalized operation", () => {
+test("metadata changes apply exactly once after a verified win and finalized operation", () => {
   const s = emptyStore();
-  s.proposals = [{ ...proposal, kind: "fees", value: "new-recipient" }];
-  s.games = [{ id: "game", status: "won" } as Game];
+  s.proposals = [{ ...proposal }];
+  s.games = [{ id: "game", status: "won", wallet: proposal.wallet } as Game];
   s.executions = [
     { id: "job", gameId: "game", proposalId: "p", status: "pending" },
   ];
@@ -190,24 +189,28 @@ test("fee recipient changes exactly once after a verified win and finalized oper
     lastClaimAt: 0,
     receipts: [],
   };
-  applyExecution(s, "game", "tx", 100);
-  assert.equal(s.fees.recipient, "new-recipient");
+  applyExecution(s, "game", "tx");
+  assert.equal(s.fees.recipient, "old-recipient");
   assert.equal(s.proposals[0].transaction, "tx");
-  applyExecution(s, "game", "different-tx", 200);
-  assert.equal(s.fees.since, 100);
+  applyExecution(s, "game", "different-tx");
+  assert.equal(s.fees.since, 0);
   assert.equal(s.executions[0].transaction, "tx");
   assert.throws(() => applyExecution(s, "forged", "tx"), /verified win/);
-  const memo = feeMemo(
-    Keypair.generate().publicKey,
-    "mint",
-    "proposal",
-    "recipient",
-  );
-  assert.equal(memo.instructions.length, 1);
-  assert.equal(
-    memo.instructions[0].programId.toBase58(),
-    "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr",
-  );
+});
+
+test("legacy fee requests cannot change the owner's recipient even after a verified win", () => {
+  const s = emptyStore();
+  s.proposals = [{ ...proposal, kind: "fees", value: "new-recipient" }];
+  s.games = [{ id: "game", status: "won", wallet: proposal.wallet } as Game];
+  s.executions = [
+    { id: "job", gameId: "game", proposalId: "p", status: "pending" },
+  ];
+  s.fees = { recipient: "owner", since: 0, lastClaimAt: 0, receipts: [] };
+  assert.throws(() => applyExecution(s, "game", "tx"), /Fee routing is fixed/);
+  assert.throws(() => nextMetadata({}, s.proposals[0]), /Fee routing is fixed/);
+  assert.equal(s.fees.recipient, "owner");
+  assert.equal(s.executions[0].status, "pending");
+  assert.equal(s.proposals[0].transaction, undefined);
 });
 
 test("name, ticker and website updates preserve other metadata and reject invalid values", () => {

@@ -33,6 +33,7 @@ test(
     await new Promise<void>((resolve) => reservation.close(() => resolve()));
     const mint = Keypair.generate().publicKey.toBase58();
     const codes = await transact((s) => {
+      s.worker = { heartbeat: Date.now() };
       s.questions = Array.from({ length: callers * 3 + 3 }, (_, i) => ({
         id: `q${i}`,
         fact: `f${i}`,

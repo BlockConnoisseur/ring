@@ -21,7 +21,7 @@ import {
   CALL_CODE_DIGITS,
 } from "../src/lib/game";
 import { requireHolding } from "../src/lib/solana";
-import { liveReady } from "../src/lib/config";
+import { acceptingCalls, liveReady } from "../src/lib/config";
 import { AudioWindow } from "../src/lib/audio-window";
 import { acquireLease } from "../src/lib/operations";
 import { callCapacity, positiveLimit, RequestGate } from "../src/lib/capacity";
@@ -131,6 +131,14 @@ const server = createServer(async (req, res) => {
       return;
     }
     if (path === "/incoming") {
+      if (!acceptingCalls(await readStore())) {
+        res.end(
+          message(
+            "Ring is temporarily unavailable. Check ring A I dot dev for the live line status, then try again.",
+          ),
+        );
+        return;
+      }
       const xml = new twilio.twiml.VoiceResponse();
       xml.say(
         "This is Ring, your A I trivia host. Your answers are processed to score the game. We do not save call recordings.",
@@ -187,6 +195,14 @@ const server = createServer(async (req, res) => {
     }
     await requireHolding(queue.wallet);
     const game = await transact((s) => {
+      // Re-check admission atomically, while allowing duplicate callbacks for an active game.
+      if (
+        !s.games.some((g) => g.callSid === form.CallSid) &&
+        !acceptingCalls(s)
+      )
+        throw new Error(
+          "Ring is temporarily unavailable. Your attempt has not started. Check the website and try again.",
+        );
       bindMint(s, process.env.RING_TOKEN_MINT!);
       return beginGame(s, form.Digits, form.CallSid);
     });

@@ -4,9 +4,9 @@ export const proposalKinds = [
   "picture",
   "description",
   "website",
-  "fees",
 ] as const;
-export type ProposalKind = (typeof proposalKinds)[number];
+// Keep the legacy kind readable in stored history, but never offer or accept it.
+export type ProposalKind = (typeof proposalKinds)[number] | "fees";
 export type Proposal = {
   id: string;
   title: string;

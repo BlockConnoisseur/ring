@@ -32,6 +32,7 @@ test(
     const wallet = Keypair.generate().publicKey.toBase58(),
       mint = Keypair.generate().publicKey.toBase58();
     const code = await transact((s) => {
+      s.worker = { heartbeat: Date.now() };
       s.wallets[wallet] = { username: "caller", cooldownUntil: 0 };
       s.proposals.push({
         id: "proposal",
@@ -133,6 +134,24 @@ test(
         });
       }
       assert.equal((await post("/incoming", {}, false)).status, 403);
+      await transact((s) => {
+        s.worker = {
+          heartbeat: Date.now(),
+          error: "Metadata authority missing",
+        };
+      });
+      assert.match(
+        await (await post("/incoming")).text(),
+        /temporarily unavailable/,
+      );
+      assert.match(
+        await (await post("/code", { Digits: code })).text(),
+        /attempt has not started/,
+      );
+      assert.equal((await readStore()).games.length, 0);
+      await transact((s) => {
+        s.worker = { heartbeat: Date.now() };
+      });
       assert.match(await (await post("/incoming")).text(), /numDigits="4"/);
       assert.match(
         await (await post("/code", { Digits: "0000" })).text(),

@@ -220,7 +220,7 @@ test("holder signs in, posts all change types, comments, queues, recovers code, 
           cookie,
         )
       ).status,
-      201,
+      400,
     );
     const image =
       "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg==";

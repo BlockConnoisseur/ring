@@ -100,9 +100,8 @@ export async function GET(
         live: acceptingCalls(s),
         canPost: canPost(),
         feePolicy:
-          "Creator fees go to the wallet chosen in the winning fee proposal until the next fee proposal is applied. Existing fees settle to the previous recipient. SOL fees arrive as wrapped SOL.",
-        feeRecipient:
-          s.fees?.recipient || process.env.RING_INITIAL_FEE_RECIPIENT || null,
+          "Trading fees stay with the project owner's wallet. Winning proposals change token metadata only.",
+        feeRecipient: process.env.RING_INITIAL_FEE_RECIPIENT || null,
         lastGame: lastGame
           ? {
               status: lastGame.status,
@@ -235,8 +234,6 @@ export async function POST(
       await requireHolding(wallet);
       const value = proposalSchema.parse(body);
       value.value = validateProposalValue(value.kind, value.value);
-      if (value.kind === "fees" && !validWallet(value.value))
-        throw new Error("Enter a valid Solana recipient wallet.");
       if (value.kind === "picture") checkImage(value.image || "");
       if (value.kind === "picture")
         value.image = await publishImage(value.image!);

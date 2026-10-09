@@ -17,25 +17,23 @@ Open http://127.0.0.1:3320. The design, proposal composer, local drafts and wall
 
 - Phantom/Solflare signed wallet login, single-use challenges and HttpOnly sessions.
 - On-chain holding checks before publishing, queueing, playing and signing a winning change.
-- Persistent proposal board and comments; a dropdown for coin name, ticker, profile picture, description, website link and fee recipient; immutable submitted payloads. Name/ticker updates change both the on-chain fields and published JSON.
+- Persistent proposal board and comments; a dropdown for coin name, ticker, profile picture, description and website link; immutable submitted payloads. Name/ticker updates change both the on-chain fields and published JSON.
 - Private four-digit call codes tied to the wallet/proposal, issued immediately after a ready holder posts. Code replacement and cancellation are supported. Codes expire after ten minutes and are never included in public board responses. Callers can dial concurrently; there is no first-in-line gate. Phone code entry requires caller ID, with rate limits across redials.
 - Twilio webhook signature verification and authenticated bidirectional Media Streams; Deepgram voice synthesis and transcription.
 - Eight seconds of answer audio after the playback mark, A/B/C/D or keypad 1–4, first valid answer wins. Transcription latency never extends the window.
 - Global question retirement and randomized option order; sourced question imports and an automatic refill worker. No stock means no new attempt.
 - A global target of `3 + 2 × wins`, with durable cooldowns, disconnect handling and duplicate-callback protection.
-- **In-repo Solana executor**: mutable Metaplex/SPL metadata and Token-2022 on-mint metadata updates, immutable public image/JSON assets, Meteora DBC creator fee claims and owned DAMM v2 position fee claims after migration.
+- **In-repo Solana executor**: mutable Metaplex/SPL metadata and Token-2022 on-mint metadata updates and immutable public image/JSON assets. The executor never claims or redirects trading fees.
 - Signed transactions are stored before broadcast, retried with identical bytes and reconciled at finality before a proposal is marked applied. Website callers cannot submit arbitrary transaction instructions.
 - Live call/result and execution states, confirmed transaction links, worker readiness checks, and a configuration doctor.
 
 ## Fee policy
 
-The chosen recipient receives Ring's project-controlled creator trading fees until another fee proposal is applied. Before switching, the worker finishes its current payout and settles fees to the previous recipient. Fees collected in that settlement belong to the old recipient; subsequent collections belong to the new one. The policy change gets a signed Solana memo receipt; individual payouts have their own fee-claim receipts. The database/worker enforces routing; the memo is an audit record, not an on-chain routing contract.
-
-The worker retains the creator/position authority. Protocol fees, another LP's fees, liquidity, token supply and unrelated treasury balances are outside the action set. SOL-denominated fees arrive in the recipient's **wrapped SOL token account**. No treasury token account is closed or swept. This default policy can be changed before launch; no live fee routing has been activated.
+Trading fees and Meteora fee-claim rights stay with the project owner's wallet. Winning callers can change only the token name, ticker, profile picture, description and website. Fee proposals are rejected by the API, metadata builder and executor, including requests stored before this policy changed.
 
 ## Configure a real deployment
 
-Copy `.env.example` to `.env.local` outside Git. Supply the public mint/pool addresses, RPC URL, Twilio number and credentials, Deepgram key, HTTPS origins and Turnkey signer settings. Follow [PHONE-SETUP.md](PHONE-SETUP.md) for the real number/voice accounts and [TURNKEY.md](TURNKEY.md) for the authority wallet. These accounts can be prepared before the token exists. The signer must be the DBC creator, own its fee-bearing DAMM v2 positions after migration, and retain the token metadata update authority. Keep a small SOL balance for transaction fees, account rent and metadata growth. Ring never asks players for their private keys.
+Copy `.env.example` to `.env.local` outside Git. Supply the public mint/pool addresses, RPC URL, Twilio number and credentials, Deepgram key, HTTPS origins and Turnkey signer settings. Follow [PHONE-SETUP.md](PHONE-SETUP.md) for the real number/voice accounts and [TURNKEY.md](TURNKEY.md) for the authority wallet. These accounts can be prepared before the token exists. The signer must hold the token metadata update authority. The owner keeps the Meteora fee rights; no transfer of fee or LP ownership is required. Keep a small SOL balance for transaction fees, account rent and metadata growth. Ring never asks players for their private keys.
 
 ```sh
 npm run questions:sync
@@ -58,7 +56,7 @@ npm run questions:worker
 
 Set `RING_LIVE=true` after configuration. The website still closes the queue if workers are unavailable or questions run out. Test a real call before opening publicly. A database lease gives one voice process ownership of recovery; that process multiplexes up to `RING_MAX_ACTIVE_CALLS` independent contestants (default 100). Supabase allows the website and persistent workers to run on separate hosts. SQLite requires one host with shared disk. The voice worker always needs a persistent HTTPS/WebSocket host. See [CAPACITY.md](CAPACITY.md) for provider limits and load verification.
 
-Alternatively, the included Docker Compose stack runs the four processes and Caddy TLS proxy. Set `APP_DOMAIN` and `VOICE_DOMAIN` to DNS names pointing to the host, `APP_ORIGIN` and `RING_ASSET_ORIGIN` to the website HTTPS origin, and `VOICE_PUBLIC_URL` to the voice HTTPS origin. Configure Turnkey as described above, then run `docker compose up --build -d`; no Solana private-key file is required. The optional `compose.keypair.yaml` adds a development-only local signer mount. With SQLite, back up the `ring-data` volume, including its live WAL or a consistent SQLite backup. With Supabase, configure database backups on the chosen plan. The database contains questions already used, sessions, proposals, assets, payout policy and transaction receipts; do not reset it on deployments. The default Compose stack passes the Turnkey API private key only to the executor.
+Alternatively, the included Docker Compose stack runs the four processes and Caddy TLS proxy. Set `APP_DOMAIN` and `VOICE_DOMAIN` to DNS names pointing to the host, `APP_ORIGIN` and `RING_ASSET_ORIGIN` to the website HTTPS origin, and `VOICE_PUBLIC_URL` to the voice HTTPS origin. Configure Turnkey as described above, then run `docker compose up --build -d`; no Solana private-key file is required. The optional `compose.keypair.yaml` adds a development-only local signer mount. With SQLite, back up the `ring-data` volume, including its live WAL or a consistent SQLite backup. With Supabase, configure database backups on the chosen plan. The database contains questions already used, sessions, proposals, assets and transaction receipts; do not reset it on deployments. The default Compose stack passes the Turnkey API private key only to the executor.
 
 ## Questions
 

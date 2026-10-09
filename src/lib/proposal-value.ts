@@ -2,6 +2,10 @@ import type { ProposalKind } from "./types";
 
 // Shared by publishing and execution; byte limits match Metaplex metadata.
 export function validateProposalValue(kind: ProposalKind, input: string) {
+  if (kind === "fees")
+    throw new Error(
+      "Fee routing is fixed to the project owner's wallet and cannot be changed by a proposal.",
+    );
   const value = input.trim();
   if (
     kind === "name" &&
