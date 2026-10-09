@@ -62,6 +62,8 @@ Alternatively, the included Docker Compose stack runs the four processes and Cad
 
 ## Questions
 
+The persistent automation service also runs an independent Open Trivia DB refill worker. It maintains at least 2,000 unused questions (or twice the configured concurrent-game requirement), spaces requests, persists session tokens, and backs off during source outages. Token expiration never resets Ring's own question retirement. Additional question data is from [Open Trivia DB](https://opentdb.com/), licensed [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/); encoding is decoded and answer order is shuffled. Attribution also appears on the rules page.
+
 `npm run questions:sync` imports canonical facts from Wikidata paintings/novels and the PubChem periodic table. An optional numeric argument selects the next Wikidata page: `npm run questions:sync -- 300`. `npm run questions:worker` refills low stock, persists its cursor and retries source outages. Sources can be incomplete or disputed; review the generated wording/difficulty for the intended audience. Manually authored questions can be imported with `npm run questions:import -- reviewed.json`:
 
 ```json
@@ -81,4 +83,4 @@ npm audit
 
 Tests include an actual local HTTP/WebSocket call through the voice server with simulated providers, plus authenticated API flows, fee instruction construction, deadlines, replay protection, transaction recovery and asset preservation. See [VERIFICATION.md](VERIFICATION.md) and [EXECUTION.md](EXECUTION.md).
 
-No token was launched, phone number purchased, signer funded, or mainnet transaction sent. Live operation still requires the project's credentials, token configuration and durable HTTPS host. These are setup inputs, not an external execution adapter left to implement.
+The website, phone number and persistent workers are configured for the reserved mint documented in TURNKEY.md. The signing wallet is funded. The token still needs to launch with mutable metadata, and its current authority must authorize the metadata-only handoff before gameplay opens. Complete a real end-to-end call after those on-chain checks pass.

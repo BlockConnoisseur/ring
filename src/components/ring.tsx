@@ -947,6 +947,11 @@ export default function Ring({
                     </div>
                   </div>
                 ))}
+                <p>
+                  Additional trivia from <a href="https://opentdb.com/">Open Trivia DB</a>,
+                  licensed under <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>.
+                  Questions are decoded and answer order is shuffled.
+                </p>
               </div>
             </div>
           </section>

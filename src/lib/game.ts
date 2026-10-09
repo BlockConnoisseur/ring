@@ -88,6 +88,7 @@ export type Store = {
   worker?: { heartbeat: number; error?: string };
   voiceHeartbeat?: number;
   questionFeed?: { offset: number; lastSync: number; error?: string };
+  triviaFeed?: { token?: string; nextSync: number; error?: string };
 };
 export function bindMint(s: Store, mint: string) {
   if (s.tokenMint && s.tokenMint !== mint)

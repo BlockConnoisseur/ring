@@ -1,6 +1,7 @@
 import { createServer } from "node:http";
 import "./execution-worker";
 import "./question-worker";
+import "./trivia-worker";
 
 // Persistent automation on Render. The public endpoint exposes process health
 // only; signing and question imports cannot be triggered through HTTP.
