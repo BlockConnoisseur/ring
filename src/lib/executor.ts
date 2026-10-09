@@ -12,6 +12,8 @@ import { metadataTransaction, verifyMetadataAuthority } from "./token-metadata";
 import { bindMint, type Store } from "./game";
 import { validateProposalValue } from "./proposal-value";
 
+let signingCheck: { key: string; expiresAt: number } | undefined;
+
 export function applyExecution(s: Store, gameId: string, signature: string) {
   const job = s.executions.find((e) => e.gameId === gameId);
   const game = s.games.find((g) => g.id === gameId);
@@ -51,11 +53,24 @@ export async function executorTick() {
       signer = authority(),
       rpc = transport(connection);
     const mint = ringMint().toBase58();
-    await verifyMetadataAuthority(connection, signer);
+    const readinessTransaction = await verifyMetadataAuthority(
+      connection,
+      signer,
+    );
     if ((await connection.getBalance(signer.publicKey)) < 10_000_000)
       throw new Error(
         "Ring metadata signer needs at least 0.01 SOL for transaction fees.",
       );
+    const signingKey = `${mint}:${signer.publicKey.toBase58()}`;
+    if (
+      signingCheck?.key !== signingKey ||
+      signingCheck.expiresAt <= Date.now()
+    ) {
+      // Prove the runtime user can sign the exact metadata instruction shape.
+      // This no-op readiness transaction is never broadcast or queued.
+      await signTransaction(connection, signer, readinessTransaction);
+      signingCheck = { key: signingKey, expiresAt: Date.now() + 600_000 };
+    }
     await guard();
     await transact((s) => {
       bindMint(s, mint);

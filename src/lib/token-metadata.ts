@@ -143,7 +143,15 @@ export async function verifyMetadataAuthority(
     if (!metadata?.updateAuthority?.equals(signer.publicKey))
       throw new Error("Ring signer is not the metadata authority.");
     await loadJson(metadata.uri.replace(/\0/g, "").trim());
-    return;
+    return new Transaction().add(
+      createUpdateFieldInstruction({
+        programId: TOKEN_2022_PROGRAM_ID,
+        metadata: mint,
+        updateAuthority: signer.publicKey,
+        field: "Name",
+        value: metadata.name,
+      }),
+    );
   }
   if (!account.owner.equals(TOKEN_PROGRAM_ID))
     throw new Error("Unsupported Ring token program.");
@@ -157,6 +165,23 @@ export async function verifyMetadataAuthority(
   )
     throw new Error("Ring needs mutable metadata and its update authority.");
   await loadJson(metadata.uri.replace(/\0/g, "").trim());
+  const umi = createUmi(connection.rpcEndpoint).use(mplTokenMetadata());
+  const identity = createNoopSigner(publicKey(signer.publicKey.toBase58()));
+  umi.use(signerIdentity(identity));
+  const builder = updateV1(umi, {
+    mint: publicKey(mint.toBase58()),
+    authority: identity,
+    data: {
+      name: metadata.name,
+      symbol: metadata.symbol,
+      uri: metadata.uri,
+      sellerFeeBasisPoints: metadata.sellerFeeBasisPoints,
+      creators: metadata.creators,
+    },
+  });
+  return new Transaction().add(
+    ...builder.getInstructions().map(toWeb3JsInstruction),
+  );
 }
 
 export async function metadataTransaction(
