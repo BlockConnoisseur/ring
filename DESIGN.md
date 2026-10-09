@@ -47,3 +47,7 @@ Prompt:
 The telephone opens a two-column call lobby using the official shadcn/ui Card composition, manually adapted to the existing CSS system (source and MIT license in THIRD_PARTY_NOTICES.md). A red hotline plate carries the real number, game target and answer instructions. A readiness card and four-slot private-code ticket show the wallet, holding and proposal state. Mobile stacks these in call order. Authored SVG icons replace Unicode icon stand-ins.
 
 The dial action is available only with a live line, eligible session, unexpired code and no cooldown or active game. An active game displays its locked target and hides the consumed code. Prelaunch never displays a fabricated code or an active-call claim. Existing queue refresh/cancel and game-result messages are preserved. A native dialog retains focus containment and Escape dismissal. Focused server-rendered tests cover readiness gates, expiry, cooldown and active-game target/code behavior.
+
+## Typography and transparent mark — October 8, 2026
+
+The owner requested a transparent logo, less basic typography and removal of the red dot beside the homepage line status. Removed the black SVG background rectangle without changing the handset paths; the header mark and favicon now have transparent backgrounds. Barlow Condensed 700 gives primary headlines an uppercase telephone-poster voice, while Archivo Variable replaces DM Sans for readable UI and body text. Both fonts are pinned, self-hosted Fontsource packages. The homepage status is now text only.

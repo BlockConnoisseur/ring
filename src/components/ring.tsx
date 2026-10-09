@@ -560,7 +560,6 @@ export default function Ring({
                   />
                 </button>
                 <div className="phone-caption">
-                  <span className="status-dot" />
                   <span>
                     {state.live ? "The line is open" : "The line opens soon"}
                   </span>
